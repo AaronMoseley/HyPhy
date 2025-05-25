@@ -5,6 +5,10 @@ from scipy.ndimage import label
 from skimage.morphology import skeletonize
 from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_otsu
+from collections import OrderedDict
+
+skeletonKey = "skeleton"
+originalImageKey = "originalImage"
 
 def change_contrast(img:Image, level):
     factor = (259 * (level + 255)) / (255 * (259 - level))
@@ -14,7 +18,7 @@ def change_contrast(img:Image, level):
 
 import numpy as np
 
-def remove_small_white_islands(binary_array, min_size):
+def remove_small_white_islands(binary_array:np.ndarray, min_size):
     """
     Remove white islands (connected components of 1s) with fewer than `min_size` pixels.
     
@@ -86,8 +90,8 @@ def smooth_binary_array(binary_array, sigma=1.0):
 
     return smoothed_binary
 
-def generate_skeletonized_images(directory:str) -> dict:
-    result = {}
+def generate_skeletonized_images(directory:str) -> OrderedDict:
+    result = OrderedDict()
 
     fileNames = os.listdir(directory)
     for fileName in fileNames:
@@ -96,6 +100,9 @@ def generate_skeletonized_images(directory:str) -> dict:
         
         filePath = os.path.join(directory, fileName)
         img = Image.open(filePath)
+
+        originalImageArray = np.asarray(img, dtype=np.float64)
+
         img = change_contrast(img, 100)
         imgArray = np.asarray(img, dtype=np.float64)
 
@@ -105,6 +112,9 @@ def generate_skeletonized_images(directory:str) -> dict:
         maxValue -= minValue
         imgArray /= maxValue
 
+        originalImageArray -= minValue
+        originalImageArray /= maxValue
+
         thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.5, 0.1)
 
         imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
@@ -113,7 +123,14 @@ def generate_skeletonized_images(directory:str) -> dict:
         imgArray = smooth_binary_array(imgArray, sigma=1.1)
         imgArray = skeletonize(imgArray)
 
-        result[fileName] = imgArray
+        currResult = {}
+        currResult[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
+        currResult[originalImageKey] = np.asarray(originalImageArray, dtype=np.float64)
+
+        currResult["tempCalc1"] = 0.0
+        currResult["tempCalc2"] = 0.0
+
+        result[fileName] = currResult
 
     return result
 
