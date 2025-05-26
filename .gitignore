@@ -2,3 +2,8 @@
 *.docx
 *.tif
 *.png
+Skeletons/*
+Images/*
+Documents/*
+initializationSettings.json
+*.pyc

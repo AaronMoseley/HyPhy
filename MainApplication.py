@@ -10,7 +10,7 @@ from collections import OrderedDict
 import cv2
 import json
 
-from CreateSkeleton import generate_skeletonized_images, skeletonKey, originalImageKey
+from CreateSkeleton import generate_skeletonized_images, skeletonKey, originalImageKey, statFunctionMap
 import re
 
 def camel_case_to_capitalized(text):
@@ -26,7 +26,7 @@ def camel_case_to_capitalized(text):
     return re.sub(r"([A-Z])", r" \1", text).title()
 
 class MainApplication(QWidget):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.currentResults = OrderedDict()
@@ -37,13 +37,122 @@ class MainApplication(QWidget):
         self.workingDirectory = os.getcwd()
 
         self.createdSkeletons = False
+        self.skeletonUIAdded = False
+
+        self.defaultInputDirectory = ""
+        self.defaultOutputDirectory = ""
+
+        self.statsFileName = "calculations.json"
+
+        self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
+
+        if os.path.exists(self.initSettingsFilePath):
+            self.LoadInitializationSettings()
+        else:
+            self.CreateInitializationSettings()
 
         self.CreateUI()
+
+        self.LoadPreviousResults()
+
+    def LoadPreviousResults(self) -> None:
+        if not os.path.exists(self.defaultInputDirectory):
+            return
+        
+        if not os.path.exists(self.defaultOutputDirectory):
+            return
+        
+        if not os.path.exists(os.path.join(self.defaultOutputDirectory, self.statsFileName)):
+            return
+        
+        #load stats in
+        statsFile = open(os.path.join(self.defaultOutputDirectory, self.statsFileName), "r")
+        stats = json.load(statsFile)
+        statsFile.close()
+
+        self.currentResults = OrderedDict()
+
+        #create dict and loop through original images
+        for origImageFileName in stats:
+            if not os.path.exists(os.path.join(self.defaultInputDirectory, origImageFileName)):
+                continue
+            
+            if origImageFileName not in stats:
+                continue
+
+            origFileBaseName, origFileExtension = os.path.splitext(origImageFileName)
+
+            skeletonFileName = f"{origFileBaseName}_skeleton{origFileExtension}"
+
+            if not os.path.exists(os.path.join(self.defaultOutputDirectory, skeletonFileName)):
+                continue
+
+            currEntry = {}
+
+            #load orig image, normalize it to 0-1
+            origImage = Image.open(os.path.join(self.defaultInputDirectory, origImageFileName))
+            origImageArray = np.asarray(origImage, dtype=np.float64)
+            origImageArray = self.NormalizeImageArray(origImageArray)
+
+            currEntry[originalImageKey] = origImageArray
+
+            #load skeleton, normalize it to 0-1
+            skeletonImage = Image.open(os.path.join(self.defaultOutputDirectory, skeletonFileName))
+            skeletonArray = np.asarray(skeletonImage, dtype=np.float64)
+            skeletonArray = self.NormalizeImageArray(skeletonArray)
+
+            currEntry[skeletonKey] = skeletonArray
+
+            #add in stats
+            for statsKey in statFunctionMap:
+                if statsKey not in stats[origImageFileName]:
+                    currEntry[statsKey] = None
+                else:
+                    currEntry[statsKey] = stats[origImageFileName][statsKey]
+
+            self.currentResults[origImageFileName] = currEntry
+        
+        self.AddSkeletonUI()
+
+    def NormalizeImageArray(self, array:np.ndarray) -> np.ndarray:
+        arrayCopy = np.copy(array)
+        
+        maxValue = np.max(arrayCopy)
+        minValue = np.min(arrayCopy)
+        arrayCopy -= minValue
+        maxValue -= minValue
+        arrayCopy /= maxValue
+
+        if arrayCopy.ndim > 2:
+            return arrayCopy.mean(axis=-1)
+
+        return arrayCopy
+
+    def CreateInitializationSettings(self) -> None:
+        self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
+        self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
+
+        initializationSettings = {
+            "defaultInputDirectory": self.defaultInputDirectory,
+            "defaultOutputDirectory": self.defaultOutputDirectory
+        }
+
+        initFile = open(self.initSettingsFilePath, "w")
+        json.dump(initializationSettings, initFile, indent=4)
+        initFile.close()
+
+    def LoadInitializationSettings(self):
+        initFile = open(self.initSettingsFilePath, "r")
+        initSettings = json.load(initFile)
+        initFile.close()
+
+        self.defaultInputDirectory = initSettings["defaultInputDirectory"]
+        self.defaultOutputDirectory = initSettings["defaultOutputDirectory"]
 
     def CreateUI(self):
         # Set window title and size
         self.setWindowTitle("Fungal Structure Detector")
-        self.setGeometry(100, 100, 500, 200)
+        self.setGeometry(100, 100, 600, 200)
 
         # Layout
         self.mainLayout = QHBoxLayout()
@@ -61,7 +170,7 @@ class MainApplication(QWidget):
         inputDirLayout.addWidget(inputDirLabel)
         self.inputDirLineEdit = QLineEdit()
         self.inputDirLineEdit.setPlaceholderText("...")
-        self.inputDirLineEdit.setText(os.path.join(self.workingDirectory, "Images"))
+        self.inputDirLineEdit.setText(self.defaultInputDirectory)
         inputDirLayout.addWidget(self.inputDirLineEdit)
 
         inputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.inputDirLineEdit))
@@ -72,7 +181,7 @@ class MainApplication(QWidget):
         outputDirLayout.addWidget(outputDirLabel)
         self.outputDirLineEdit = QLineEdit()
         self.outputDirLineEdit.setPlaceholderText("...")
-        self.outputDirLineEdit.setText(os.path.join(self.workingDirectory, "Skeletons"))
+        self.outputDirLineEdit.setText(self.defaultOutputDirectory)
         outputDirLayout.addWidget(self.outputDirLineEdit)
 
         outputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.outputDirLineEdit))
@@ -86,6 +195,10 @@ class MainApplication(QWidget):
         
         inputDir = self.inputDirLineEdit.text()
         outputDir = self.outputDirLineEdit.text()
+
+        self.defaultInputDirectory = inputDir
+        self.defaultOutputDirectory = outputDir
+        self.CreateInitializationSettings()
 
         result = generate_skeletonized_images(inputDir)
 
@@ -113,14 +226,19 @@ class MainApplication(QWidget):
 
         self.currentResults = result
 
-        jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "calculations.json")
+        jsonFilePath = os.path.join(self.outputDirLineEdit.text(), self.statsFileName)
         jsonFile = open(jsonFilePath, "w")
         json.dump(jsonFileResult, jsonFile, indent=4)
         jsonFile.close()
 
-        self.AddSkeletonUI(result)
+        self.AddSkeletonUI()
 
-    def AddSkeletonUI(self, skeletonResults:OrderedDict) -> None:
+    def AddSkeletonUI(self) -> None:
+        if self.skeletonUIAdded:
+            return
+        
+        self.skeletonUIAdded = True
+        
         self.resize(1000, 500)
 
         skeletonLayout = QVBoxLayout()
@@ -151,11 +269,7 @@ class MainApplication(QWidget):
 
         self.calculationStatLabels = OrderedDict()
 
-        firstFile = list(skeletonResults.keys())[0]
-        for key in skeletonResults[firstFile]:
-            if key == skeletonKey or key == originalImageKey:
-                continue
-
+        for key in statFunctionMap:
             title = camel_case_to_capitalized(key)
             newLabel = QLabel(f"{title}: ")
             self.calculationStatLabels[key] = newLabel

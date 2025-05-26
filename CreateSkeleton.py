@@ -6,17 +6,24 @@ from skimage.morphology import skeletonize
 from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_otsu
 from collections import OrderedDict
+import random
 
 skeletonKey = "skeleton"
 originalImageKey = "originalImage"
+
+def random_number_generator(skeleton:np.ndarray):
+    return random.uniform(0, 1)
+
+statFunctionMap = {
+    "testCalc1": random_number_generator,
+    "testCalc2": random_number_generator
+}
 
 def change_contrast(img:Image, level):
     factor = (259 * (level + 255)) / (255 * (259 - level))
     def contrast(c):
         return 128 + factor * (c - 128)
     return img.point(contrast)
-
-import numpy as np
 
 def remove_small_white_islands(binary_array:np.ndarray, min_size):
     """
@@ -127,8 +134,8 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
         currResult[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
         currResult[originalImageKey] = np.asarray(originalImageArray, dtype=np.float64)
 
-        currResult["tempCalc1"] = 0.0
-        currResult["tempCalc2"] = 0.0
+        for key in statFunctionMap:
+            currResult[key] = statFunctionMap[key](imgArray)
 
         result[fileName] = currResult
 
