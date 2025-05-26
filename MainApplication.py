@@ -46,6 +46,9 @@ class MainApplication(QWidget):
 
         self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
 
+        self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
+        self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
+
         if os.path.exists(self.initSettingsFilePath):
             self.LoadInitializationSettings()
         else:
@@ -129,9 +132,9 @@ class MainApplication(QWidget):
         return arrayCopy
 
     def CreateInitializationSettings(self) -> None:
-        self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
-        self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
-
+        self.defaultInputDirectory = self.defaultInputDirectory.replace("/", "\\")
+        self.defaultOutputDirectory = self.defaultOutputDirectory.replace("/", "\\")
+        
         initializationSettings = {
             "defaultInputDirectory": self.defaultInputDirectory,
             "defaultOutputDirectory": self.defaultOutputDirectory
@@ -235,6 +238,7 @@ class MainApplication(QWidget):
 
     def AddSkeletonUI(self) -> None:
         if self.skeletonUIAdded:
+            self.LoadImageIntoUI(0)
             return
         
         self.skeletonUIAdded = True
@@ -279,19 +283,21 @@ class MainApplication(QWidget):
 
         scrollButtonLayout = QHBoxLayout()
         skeletonLayout.addLayout(scrollButtonLayout)
-        leftButton = QPushButton("🠨")
-        font = leftButton.font()
+        self.leftButton = QPushButton("🠨")
+        font = self.leftButton.font()
         font.setPointSize(25)
-        leftButton.setFont(font)
-        scrollButtonLayout.addWidget(leftButton)
-        leftButton.clicked.connect(partial(self.ChangeIndex, -1))
+        self.leftButton.setFont(font)
+        scrollButtonLayout.addWidget(self.leftButton)
+        self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
 
-        rightButton = QPushButton("🠪")
-        font = rightButton.font()
+        self.leftButton.setEnabled(False)
+
+        self.rightButton = QPushButton("🠪")
+        font = self.rightButton.font()
         font.setPointSize(25)
-        rightButton.setFont(font)
-        scrollButtonLayout.addWidget(rightButton)
-        rightButton.clicked.connect(partial(self.ChangeIndex, 1))
+        self.rightButton.setFont(font)
+        scrollButtonLayout.addWidget(self.rightButton)
+        self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
         self.LoadImageIntoUI(0)
 
@@ -318,6 +324,16 @@ class MainApplication(QWidget):
             return
         
         self.LoadImageIntoUI(self.currentIndex + direction)
+
+        if self.currentIndex == 0:
+            self.leftButton.setEnabled(False)
+        elif not self.leftButton.isEnabled():
+            self.leftButton.setEnabled(True)
+
+        if self.currentIndex == len(self.currentResults) - 1:
+            self.rightButton.setEnabled(False)
+        elif not self.rightButton.isEnabled():
+            self.rightButton.setEnabled(True)
 
     def ArrayToPixmap(self, array:np.ndarray, correctRange:bool=False, isSkeleton=False) -> QPixmap:
         arrayCopy = np.copy(array)
@@ -363,6 +379,7 @@ class MainApplication(QWidget):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
 
         if directory:
+            directory = directory.replace("/", "\\")
             lineEdit.setText(directory)
 
 # Run the application
