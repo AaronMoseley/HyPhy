@@ -8,3 +8,4 @@ Documents/*
 initializationSettings.json
 *.pyc
 __pycache__/*
+*.txt

@@ -7,6 +7,7 @@ from skimage.measure import regionprops
 from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_otsu
 from collections import OrderedDict
+from skimage import morphology
 import random
 
 skeletonKey = "skeleton"
@@ -19,6 +20,12 @@ statFunctionMap = {
     "testCalc1": random_number_generator,
     "testCalc2": random_number_generator
 }
+
+def top_hat(image:np.ndarray) -> np.ndarray:
+    footprint = morphology.disk(1)
+    res = morphology.white_tophat(image, footprint)
+
+    return res
 
 def remove_noisy_islands(binary_array, max_perimeter_area_ratio=0.5):
     # Label connected components
@@ -168,7 +175,7 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
         originalImageArray -= minValue
         originalImageArray /= maxValue
 
-        thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.52, 0.12)
+        thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.515, 0.12)
 
         imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
 
