@@ -3,6 +3,7 @@ import os
 from PIL import Image
 from scipy.ndimage import label
 from skimage.morphology import skeletonize
+from skimage.measure import regionprops
 from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_otsu
 from collections import OrderedDict
@@ -19,11 +20,57 @@ statFunctionMap = {
     "testCalc2": random_number_generator
 }
 
-def change_contrast(img:Image, level):
-    factor = (259 * (level + 255)) / (255 * (259 - level))
-    def contrast(c):
-        return 128 + factor * (c - 128)
-    return img.point(contrast)
+def remove_noisy_islands(binary_array, max_perimeter_area_ratio=0.5):
+    # Label connected components
+    labeled_array, num_features = label(binary_array)
+    
+    # Output image
+    cleaned = np.zeros_like(binary_array)
+
+    # Analyze each region
+    for region in regionprops(labeled_array):
+        area = region.area
+        perimeter = region.perimeter
+        if area == 0:
+            continue
+
+        ratio = perimeter / area
+        if ratio <= max_perimeter_area_ratio:
+            # Keep only coherent regions
+            cleaned[labeled_array == region.label] = 1
+
+    return cleaned
+
+def count_black_neighbors(binary_array, x, y):
+    neighbors = binary_array[x-1:x+2, y-1:y+2]
+    return 8 - np.sum(neighbors)  # count black (0) pixels
+
+def remove_structurally_noisy_islands(binary_array, max_avg_black_neighbors=4.0):
+    # Label connected white regions
+    labeled_array, num_features = label(binary_array)
+
+    # Pad array to handle edges safely
+    padded_array = np.pad(binary_array, 1)
+    padded_labels = np.pad(labeled_array, 1)
+
+    output = np.zeros_like(binary_array)
+
+    for label_id in range(1, num_features + 1):
+        coords = np.argwhere(padded_labels == label_id)
+        black_neighbor_counts = []
+
+        for x, y in coords:
+            black_neighbors = count_black_neighbors(padded_array, x, y)
+            black_neighbor_counts.append(black_neighbors)
+
+        avg_black_neighbors = np.mean(black_neighbor_counts)
+
+        if avg_black_neighbors <= max_avg_black_neighbors:
+            # Keep coherent island
+            for x, y in coords:
+                output[x - 1, y - 1] = 1  # remove padding offset
+
+    return output
 
 def remove_small_white_islands(binary_array:np.ndarray, min_size):
     """
@@ -110,7 +157,6 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
 
         originalImageArray = np.asarray(img, dtype=np.float64)
 
-        img = change_contrast(img, 100)
         imgArray = np.asarray(img, dtype=np.float64)
 
         maxValue = np.max(imgArray)
@@ -122,12 +168,13 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
         originalImageArray -= minValue
         originalImageArray /= maxValue
 
-        thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.5, 0.1)
+        thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.52, 0.12)
 
         imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
 
-        imgArray = remove_small_white_islands(imgArray, 300)
-        imgArray = smooth_binary_array(imgArray, sigma=1.1)
+        imgArray = remove_small_white_islands(imgArray, 800)
+        imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=0.15)
+        imgArray = smooth_binary_array(imgArray, sigma=1.2)
         imgArray = skeletonize(imgArray)
 
         currResult = {}
@@ -142,7 +189,8 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
     return result
 
 if __name__ == "__main__":
-    directory = "C:\\Users\\Aaron\\Downloads\\JennaProject\\Images"
+    directory = "C:\\Users\\Aaron\\Documents\\GitHub\\FungalStructureProject\\Images"
 
     images = generate_skeletonized_images(directory)
-    Image.fromarray(np.asarray(images[list(images.keys())[0]] * 255, dtype=np.uint8), mode="L").show()
+    print(list(images.keys())[4])
+    Image.fromarray(np.asarray(images[list(images.keys())[4]][skeletonKey] * 255, dtype=np.uint8), mode="L").show()

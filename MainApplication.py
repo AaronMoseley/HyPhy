@@ -345,9 +345,9 @@ class MainApplication(QWidget):
 
         # Resize using OpenCV
         if not isSkeleton:
-            resized_gray = cv2.resize(arrayCopy, (256, 256), interpolation=cv2.INTER_CUBIC)
+            resized_gray = cv2.resize(arrayCopy, (249, 249), interpolation=cv2.INTER_CUBIC)
         else:
-            resized_gray = self.max_pool_downsample(arrayCopy, 256, 256)
+            resized_gray = self.max_pool_downsample(arrayCopy, 249, 249)
 
         # Convert to RGB by stacking channels
         rgb_array = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2RGB)
@@ -359,21 +359,31 @@ class MainApplication(QWidget):
         newPixmap = QPixmap.fromImage(qImage)
         return newPixmap
 
-    def max_pool_downsample(self, image: np.ndarray, target_width: int, target_height: int) -> np.ndarray:
-        # Compute scale factors
-        scale_y = image.shape[0] // target_height
-        scale_x = image.shape[1] // target_width
+    def max_pool_downsample(self, binary_array, target_height, target_width):
+        """
+        Downsamples a 2D binary numpy array to the specified target size using max pooling.
+        
+        Parameters:
+            binary_array (np.ndarray): 2D binary input array (values 0 or 1).
+            target_height (int): Desired number of rows in output.
+            target_width (int): Desired number of columns in output.
+            
+        Returns:
+            np.ndarray: Downsampled binary array of shape (target_height, target_width).
+        """
+        
+        h, w = binary_array.shape
+        if h % target_height != 0 or w % target_width != 0:
+            raise ValueError("Input dimensions must be divisible by target dimensions for exact pooling.")
+        
+        pool_h = h // target_height
+        pool_w = w // target_width
 
-        # Crop the image to make it divisible
-        new_height = scale_y * target_height
-        new_width = scale_x * target_width
-        image_cropped = image[:new_height, :new_width]
-
-        # Reshape and max-pool
-        reshaped = image_cropped.reshape(target_height, scale_y, target_width, scale_x)
+        # Reshape and apply max pooling
+        reshaped = binary_array.reshape(target_height, pool_h, target_width, pool_w)
         pooled = reshaped.max(axis=(1, 3))
-
-        return pooled.astype(np.uint8)
+        
+        return pooled
 
     def SelectDirectoryAndSetLineEdit(self, lineEdit:QLineEdit) -> None:
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
