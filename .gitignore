@@ -7,3 +7,4 @@ Images/*
 Documents/*
 initializationSettings.json
 *.pyc
+__pycache__/*
