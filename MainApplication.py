@@ -2,15 +2,15 @@ import sys
 import os
 import numpy as np
 from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel
-from PyQt6.QtGui import QPixmap, QImage
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QImage, QPen, QPainter, QColor
+from PyQt6.QtCore import Qt, QPoint
 from functools import partial
 from PIL import Image
 from collections import OrderedDict
 import cv2
 import json
 
-from CreateSkeleton import generate_skeletonized_images, skeletonKey, originalImageKey, statFunctionMap
+from CreateSkeleton import generate_skeletonized_images, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey
 import re
 
 def camel_case_to_capitalized(text):
@@ -105,6 +105,8 @@ class MainApplication(QWidget):
             skeletonArray = self.NormalizeImageArray(skeletonArray)
 
             currEntry[skeletonKey] = skeletonArray
+
+            currEntry[vectorKey] = stats[origImageFileName][vectorKey]
 
             #add in stats
             for statsKey in statFunctionMap:
@@ -309,7 +311,8 @@ class MainApplication(QWidget):
         self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageFileName)
 
         originalImagePixmap = self.ArrayToPixmap(self.currentResults[imageFileName][originalImageKey], False, False)
-        skeletonPixmap = self.ArrayToPixmap(self.currentResults[imageFileName][skeletonKey], False, True)
+        #skeletonPixmap = self.ArrayToPixmap(self.currentResults[imageFileName][skeletonKey], False, True)
+        skeletonPixmap = self.draw_lines_on_pixmap(imageFileName)
 
         self.originalImageLabel.setPixmap(originalImagePixmap)
         self.skeletonLabel.setPixmap(skeletonPixmap)
@@ -318,6 +321,35 @@ class MainApplication(QWidget):
             title = camel_case_to_capitalized(statsLabelKey)
 
             self.calculationStatLabels[statsLabelKey].setText(f"{title}: {self.currentResults[imageFileName][statsLabelKey]}")
+
+    def draw_lines_on_pixmap(self, imageName:str, width=249, height=249, line_color=QColor("white"), line_width=2):
+        points = self.currentResults[imageName][vectorKey][pointsKey]
+        lines = self.currentResults[imageName][vectorKey][linesKey]
+        
+        pixmap = QPixmap(width, height)
+        pixmap.fill(QColor("black"))
+
+        painter = QPainter(pixmap)
+        pen = QPen(line_color)
+        pen.setWidth(line_width)
+        painter.setPen(pen)
+
+        # Helper to scale normalized points to pixel coordinates
+        def scale_point(p):
+            x = int(p[0] * width)
+            y = int((1 - p[1]) * height)
+            return QPoint(x, y)
+
+        for line in lines:
+            if len(line) < 2:
+                continue
+            for i in range(len(line) - 1):
+                p1 = scale_point(points[line[i]])
+                p2 = scale_point(points[line[i + 1]])
+                painter.drawLine(p1, p2)
+
+        painter.end()
+        return pixmap
 
     def ChangeIndex(self, direction:int) -> None:
         if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentResults):

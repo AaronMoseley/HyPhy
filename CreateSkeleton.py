@@ -14,6 +14,9 @@ from VectorizeSkeleton import VectorizeSkeleton
 
 skeletonKey = "skeleton"
 originalImageKey = "originalImage"
+vectorKey = "vectorized"
+linesKey = "lines"
+pointsKey = "points"
 
 def random_number_generator(skeleton:np.ndarray):
     return random.uniform(0, 1)
@@ -190,12 +193,19 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
         currResult[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
         currResult[originalImageKey] = np.asarray(originalImageArray, dtype=np.float64)
 
+        lines, points = VectorizeSkeleton(imgArray)
+
+        vectors = {
+            linesKey: lines,
+            pointsKey: points
+        }
+
+        currResult[vectorKey] = vectors
+
         for key in statFunctionMap:
             currResult[key] = statFunctionMap[key](imgArray)
 
         result[fileName] = currResult
-
-        lines, points = VectorizeSkeleton(imgArray)
 
     return result
 
