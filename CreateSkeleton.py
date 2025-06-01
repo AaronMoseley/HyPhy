@@ -10,6 +10,8 @@ from collections import OrderedDict
 from skimage import morphology
 import random
 
+from VectorizeSkeleton import VectorizeSkeleton
+
 skeletonKey = "skeleton"
 originalImageKey = "originalImage"
 
@@ -192,6 +194,8 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
             currResult[key] = statFunctionMap[key](imgArray)
 
         result[fileName] = currResult
+
+        lines, points = VectorizeSkeleton(imgArray)
 
     return result
 
