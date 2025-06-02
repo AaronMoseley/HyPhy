@@ -46,7 +46,7 @@ class SkeletonViewer(QWidget):
         self.origImageLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.origImageLabel)
 
-        self.skeletonLabel = InteractiveSkeletonPixmap()
+        self.skeletonLabel = InteractiveSkeletonPixmap(self.imageResolution)
         self.skeletonLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.skeletonLabel)
 
@@ -75,10 +75,9 @@ class SkeletonViewer(QWidget):
         self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageName)
 
         originalImagePixmap = ArrayToPixmap(self.currentResults[imageName][originalImageKey], self.imageResolution, False)
-        skeletonPixmap = draw_lines_on_pixmap(self.currentResults[imageName][vectorKey][pointsKey], self.currentResults[imageName][vectorKey][linesKey], self.imageResolution)
+        self.skeletonLabel.SetLines(self.currentResults[imageName][vectorKey][pointsKey], self.currentResults[imageName][vectorKey][linesKey])
 
         self.origImageLabel.setPixmap(originalImagePixmap)
-        self.skeletonLabel.setPixmap(skeletonPixmap)
 
         for statsLabelKey in self.calculationStatLabels:
             title = camel_case_to_capitalized(statsLabelKey)

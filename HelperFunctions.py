@@ -92,3 +92,41 @@ def NormalizeImageArray(array:np.ndarray) -> np.ndarray:
         return arrayCopy.mean(axis=-1)
 
     return arrayCopy
+
+"""
+def DistanceToLine(point:tuple[float, float], lineStart:tuple[float, float], lineEnd:tuple[float, float]) -> float:
+    newPoint = np.asarray(point, dtype=np.float64)
+    newLineStart = np.asarray(lineStart, dtype=np.float64)
+    newLineEnd = np.asarray(lineEnd, dtype=np.float64)
+
+    return abs(np.cross(newLineEnd - newLineStart, newPoint - newLineStart) / np.linalg.norm(newLineEnd - newLineStart))
+"""
+
+def DistanceToLine(P, A, B):
+    P = np.array(P, dtype=float)
+    A = np.array(A, dtype=float)
+    B = np.array(B, dtype=float)
+    
+    AB = B - A
+    AP = P - A
+    AB_len_squared = np.dot(AB, AB)
+
+    if AB_len_squared == 0:
+        # A and B are the same point
+        return np.linalg.norm(P - A)
+
+    # Project point P onto the line AB, computing parameter t of the projection
+    t = np.dot(AP, AB) / AB_len_squared
+
+    if t < 0.0:
+        # Closest to point A
+        closest_point = A
+    elif t > 1.0:
+        # Closest to point B
+        closest_point = B
+    else:
+        # Projection falls on the segment
+        closest_point = A + t * AB
+
+    # Return distance from P to the closest point
+    return np.linalg.norm(P - closest_point)
