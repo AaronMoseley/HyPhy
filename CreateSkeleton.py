@@ -8,23 +8,8 @@ from scipy.ndimage import gaussian_filter
 from skimage.filters import threshold_otsu
 from collections import OrderedDict
 from skimage import morphology
-import random
 
 from VectorizeSkeleton import VectorizeSkeleton
-
-skeletonKey = "skeleton"
-originalImageKey = "originalImage"
-vectorKey = "vectorized"
-linesKey = "lines"
-pointsKey = "points"
-
-def random_number_generator(skeleton:np.ndarray):
-    return random.uniform(0, 1)
-
-statFunctionMap = {
-    "testCalc1": random_number_generator,
-    "testCalc2": random_number_generator
-}
 
 def top_hat(image:np.ndarray) -> np.ndarray:
     footprint = morphology.disk(1)

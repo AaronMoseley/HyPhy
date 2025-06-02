@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel
-from PyQt6.QtGui import QPixmap, QImage, QPen, QPainter, QColor
-from PyQt6.QtCore import Qt, QPoint
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel
+from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt, Signal
 
 import numpy as np
 
@@ -9,26 +9,17 @@ from collections import OrderedDict
 
 import os
 import json
-import cv2
 
 from PIL import Image
-import re
 
-from CreateSkeleton import generate_skeletonized_images, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey
-
-def camel_case_to_capitalized(text):
-    """
-    Converts a camel case string to a capitalized string with spaces.
-
-    Args:
-        text: The camel case string to convert.
-
-    Returns:
-        The capitalized string with spaces.
-    """
-    return re.sub(r"([A-Z])", r" \1", text).title()
+from CreateSkeleton import generate_skeletonized_images
+from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey
+from ClickableLabel import ClickableLabel
 
 class ImageOverview(QWidget):
+    ClickedOnSkeleton = Signal(str)
+    GeneratedResults = Signal(OrderedDict)
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -59,22 +50,6 @@ class ImageOverview(QWidget):
 
         self.CreateUI()
 
-        self.LoadPreviousResults()
-
-    def NormalizeImageArray(self, array:np.ndarray) -> np.ndarray:
-        arrayCopy = np.copy(array)
-        
-        maxValue = np.max(arrayCopy)
-        minValue = np.min(arrayCopy)
-        arrayCopy -= minValue
-        maxValue -= minValue
-        arrayCopy /= maxValue
-
-        if arrayCopy.ndim > 2:
-            return arrayCopy.mean(axis=-1)
-
-        return arrayCopy
-    
     def CreateUI(self):
         # Set window title and size
         self.setWindowTitle("Fungal Structure Detector")
@@ -159,6 +134,8 @@ class ImageOverview(QWidget):
 
         self.AddSkeletonUI()
 
+        self.GeneratedResults.emit(self.currentResults)
+
     def AddSkeletonUI(self) -> None:
         if self.skeletonUIAdded:
             self.LoadImageIntoUI(0)
@@ -183,7 +160,8 @@ class ImageOverview(QWidget):
         middleSkeletonLayout.addLayout(imageLayout)
         
         self.originalImageLabel = QLabel()
-        self.skeletonLabel = QLabel()
+        self.skeletonLabel = ClickableLabel()
+        self.skeletonLabel.clicked.connect(self.GoIntoSkeletonView)
 
         imageLayout.addWidget(self.originalImageLabel)
         imageLayout.addWidget(self.skeletonLabel)
@@ -224,6 +202,9 @@ class ImageOverview(QWidget):
 
         self.LoadImageIntoUI(0)
 
+    def GoIntoSkeletonView(self) -> None:
+        self.ClickedOnSkeleton.emit(list(self.currentResults.keys())[self.currentIndex])
+
     def LoadImageIntoUI(self, index:int) -> None:
         self.currentIndex = index
 
@@ -231,8 +212,8 @@ class ImageOverview(QWidget):
 
         self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageFileName)
 
-        originalImagePixmap = self.ArrayToPixmap(self.currentResults[imageFileName][originalImageKey], False, False)
-        skeletonPixmap = self.draw_lines_on_pixmap(imageFileName)
+        originalImagePixmap = ArrayToPixmap(self.currentResults[imageFileName][originalImageKey], 256, False)
+        skeletonPixmap = draw_lines_on_pixmap(self.currentResults[imageFileName][vectorKey][pointsKey], self.currentResults[imageFileName][vectorKey][linesKey], 256)
 
         self.originalImageLabel.setPixmap(originalImagePixmap)
         self.skeletonLabel.setPixmap(skeletonPixmap)
@@ -241,35 +222,6 @@ class ImageOverview(QWidget):
             title = camel_case_to_capitalized(statsLabelKey)
 
             self.calculationStatLabels[statsLabelKey].setText(f"{title}: {self.currentResults[imageFileName][statsLabelKey]}")
-
-    def draw_lines_on_pixmap(self, imageName:str, width=249, height=249, line_color=QColor("white"), line_width=2):
-        points = self.currentResults[imageName][vectorKey][pointsKey]
-        lines = self.currentResults[imageName][vectorKey][linesKey]
-        
-        pixmap = QPixmap(width, height)
-        pixmap.fill(QColor("black"))
-
-        painter = QPainter(pixmap)
-        pen = QPen(line_color)
-        pen.setWidth(line_width)
-        painter.setPen(pen)
-
-        # Helper to scale normalized points to pixel coordinates
-        def scale_point(p):
-            x = int(p[0] * width)
-            y = int((1 - p[1]) * height)
-            return QPoint(x, y)
-
-        for line in lines:
-            if len(line) < 2:
-                continue
-            for i in range(len(line) - 1):
-                p1 = scale_point(points[line[i]])
-                p2 = scale_point(points[line[i + 1]])
-                painter.drawLine(p1, p2)
-
-        painter.end()
-        return pixmap
 
     def ChangeIndex(self, direction:int) -> None:
         if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentResults):
@@ -286,56 +238,6 @@ class ImageOverview(QWidget):
             self.rightButton.setEnabled(False)
         elif not self.rightButton.isEnabled():
             self.rightButton.setEnabled(True)
-
-    def ArrayToPixmap(self, array:np.ndarray, correctRange:bool=False, isSkeleton=False) -> QPixmap:
-        arrayCopy = np.copy(array)
-        
-        if not correctRange:
-            arrayCopy *= 255.0
-
-        arrayCopy = np.asarray(arrayCopy, dtype=np.uint8)
-
-        # Resize using OpenCV
-        if not isSkeleton:
-            resized_gray = cv2.resize(arrayCopy, (249, 249), interpolation=cv2.INTER_CUBIC)
-        else:
-            resized_gray = self.max_pool_downsample(arrayCopy, 249, 249)
-
-        # Convert to RGB by stacking channels
-        rgb_array = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2RGB)
-
-        height, width, channels = rgb_array.shape
-        bytesPerLine = width * channels
-        qImage = QImage(rgb_array.data, width, height, bytesPerLine, QImage.Format.Format_RGB888)
-        qImage = qImage.copy()
-        newPixmap = QPixmap.fromImage(qImage)
-        return newPixmap
-
-    def max_pool_downsample(self, binary_array, target_height, target_width):
-        """
-        Downsamples a 2D binary numpy array to the specified target size using max pooling.
-        
-        Parameters:
-            binary_array (np.ndarray): 2D binary input array (values 0 or 1).
-            target_height (int): Desired number of rows in output.
-            target_width (int): Desired number of columns in output.
-            
-        Returns:
-            np.ndarray: Downsampled binary array of shape (target_height, target_width).
-        """
-        
-        h, w = binary_array.shape
-        if h % target_height != 0 or w % target_width != 0:
-            raise ValueError("Input dimensions must be divisible by target dimensions for exact pooling.")
-        
-        pool_h = h // target_height
-        pool_w = w // target_width
-
-        # Reshape and apply max pooling
-        reshaped = binary_array.reshape(target_height, pool_h, target_width, pool_w)
-        pooled = reshaped.max(axis=(1, 3))
-        
-        return pooled
 
     def SelectDirectoryAndSetLineEdit(self, lineEdit:QLineEdit) -> None:
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
@@ -381,14 +283,14 @@ class ImageOverview(QWidget):
             #load orig image, normalize it to 0-1
             origImage = Image.open(os.path.join(self.defaultInputDirectory, origImageFileName))
             origImageArray = np.asarray(origImage, dtype=np.float64)
-            origImageArray = self.NormalizeImageArray(origImageArray)
+            origImageArray = NormalizeImageArray(origImageArray)
 
             currEntry[originalImageKey] = origImageArray
 
             #load skeleton, normalize it to 0-1
             skeletonImage = Image.open(os.path.join(self.defaultOutputDirectory, skeletonFileName))
             skeletonArray = np.asarray(skeletonImage, dtype=np.float64)
-            skeletonArray = self.NormalizeImageArray(skeletonArray)
+            skeletonArray = NormalizeImageArray(skeletonArray)
 
             currEntry[skeletonKey] = skeletonArray
 
@@ -402,8 +304,10 @@ class ImageOverview(QWidget):
                     currEntry[statsKey] = stats[origImageFileName][statsKey]
 
             self.currentResults[origImageFileName] = currEntry
-        
+
         self.AddSkeletonUI()
+
+        self.GeneratedResults.emit(self.currentResults)
 
     def CreateInitializationSettings(self) -> None:
         self.defaultInputDirectory = self.defaultInputDirectory.replace("/", "\\")
