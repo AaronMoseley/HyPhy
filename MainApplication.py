@@ -311,7 +311,6 @@ class MainApplication(QWidget):
         self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageFileName)
 
         originalImagePixmap = self.ArrayToPixmap(self.currentResults[imageFileName][originalImageKey], False, False)
-        #skeletonPixmap = self.ArrayToPixmap(self.currentResults[imageFileName][skeletonKey], False, True)
         skeletonPixmap = self.draw_lines_on_pixmap(imageFileName)
 
         self.originalImageLabel.setPixmap(originalImagePixmap)
