@@ -93,15 +93,6 @@ def NormalizeImageArray(array:np.ndarray) -> np.ndarray:
 
     return arrayCopy
 
-"""
-def DistanceToLine(point:tuple[float, float], lineStart:tuple[float, float], lineEnd:tuple[float, float]) -> float:
-    newPoint = np.asarray(point, dtype=np.float64)
-    newLineStart = np.asarray(lineStart, dtype=np.float64)
-    newLineEnd = np.asarray(lineEnd, dtype=np.float64)
-
-    return abs(np.cross(newLineEnd - newLineStart, newPoint - newLineStart) / np.linalg.norm(newLineEnd - newLineStart))
-"""
-
 def DistanceToLine(P, A, B):
     P = np.array(P, dtype=float)
     A = np.array(A, dtype=float)
