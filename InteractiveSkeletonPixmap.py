@@ -1,8 +1,10 @@
 from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QMouseEvent, QPixmap
+from PySide6.QtGui import QMouseEvent, QPixmap, QColor
 
 import numpy as np
+
+from collections import deque
 
 from HelperFunctions import draw_lines_on_pixmap, DistanceToLine
 
@@ -18,13 +20,83 @@ class InteractiveSkeletonPixmap(QLabel):
 
         self.points = None
         self.lines = None
+        self.clumps = None
+
+        self.selectedLineIndex = -1
+        self.selectedClumpIndex = -1
+
+        self.maxSelectDistance = 0.01
+
+        self.selectedLineColor = QColor("purple")
+        self.selectedClumpColor = QColor("red")
 
     def SetLines(self, points:list[tuple[float, float]], lines:list[list[int]]) -> None:
         self.points = points
         self.lines = lines
-        
+        self.GetClumps()
+
         pixmap = draw_lines_on_pixmap(points, lines, self.dimension)
         self.setPixmap(pixmap)
+
+    def GetClumps(self) -> None:
+        # Step 1: Build point-to-polyline index
+        point_to_polylines = {}
+        for i, polyline in enumerate(self.lines):
+            for point in polyline:
+                if point not in point_to_polylines:
+                    point_to_polylines[point] = set()
+
+                point_to_polylines[point].add(i)
+
+        # Build connectivity graph between polylines
+        graph = {}
+        for i, polyline in enumerate(self.lines):
+            if i not in graph:
+                graph[i] = set()
+
+            for point in polyline:
+                for neighbor in point_to_polylines[point]:
+                    if neighbor != i:
+                        graph[i].add(neighbor)
+
+        # Step 3: Find connected components using BFS or DFS
+        visited = set()
+        clusters = []
+
+        for i in range(len(self.lines)):
+            if i not in visited:
+                queue = deque([i])
+                cluster_indices = []
+                while queue:
+                    idx = queue.popleft()
+                    if idx not in visited:
+                        visited.add(idx)
+                        cluster_indices.append(idx)
+                        queue.extend(graph[idx] - visited)
+                # Create flat list of polylines for the cluster
+                clusters.append(cluster_indices)
+
+        self.clumps = clusters
+
+    def LineToClump(self, line:int) -> int:
+        for i in range(len(self.clumps)):
+            if line in self.clumps[i]:
+                return i
+            
+        return -1
+    
+    def GetColorMap(self) -> dict:
+        if self.selectedClumpIndex is None or self.selectedLineIndex is None:
+            return {}
+        
+        result = {}
+
+        for lineIndex in self.clumps[self.selectedClumpIndex]:
+            result[lineIndex] = self.selectedClumpColor
+
+        result[self.selectedLineIndex] = self.selectedLineColor
+
+        return result
 
     def mouseMoveEvent(self, event:QMouseEvent):
         x = event.x() / self.dimension
@@ -47,4 +119,18 @@ class InteractiveSkeletonPixmap(QLabel):
                     closestDist = dist
                     closestLine = i
 
-        print(closestLine)
+        if closestDist < self.maxSelectDistance:
+            if closestLine != self.selectedLineIndex:
+                self.selectedLineIndex = closestLine
+                self.selectedClumpIndex = self.LineToClump(closestLine)
+
+                colorMap = self.GetColorMap()
+                pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension, colorMap)
+                self.setPixmap(pixmap)
+        else:
+            if self.selectedLineIndex is not None:
+                self.selectedLineIndex = None
+                self.selectedClumpIndex = None
+
+                pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension)
+                self.setPixmap(pixmap)

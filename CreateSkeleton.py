@@ -11,6 +11,8 @@ from skimage import morphology
 
 from VectorizeSkeleton import VectorizeSkeleton
 
+from HelperFunctions import skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey
+
 def top_hat(image:np.ndarray) -> np.ndarray:
     footprint = morphology.disk(1)
     res = morphology.white_tophat(image, footprint)

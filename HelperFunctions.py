@@ -32,7 +32,8 @@ def camel_case_to_capitalized(text):
     """
     return re.sub(r"([A-Z])", r" \1", text).title()
 
-def draw_lines_on_pixmap(points:list[tuple[float, float]], lines:list[list[int]], dimension:int=249, line_color=QColor("white"), line_width=2):
+def draw_lines_on_pixmap(points:list[tuple[float, float]], lines:list[list[int]], 
+                         dimension:int=249, colorMap:dict={}, line_color=QColor("white"), line_width=2):
     pixmap = QPixmap(dimension, dimension)
     pixmap.fill(QColor("black"))
 
@@ -47,7 +48,14 @@ def draw_lines_on_pixmap(points:list[tuple[float, float]], lines:list[list[int]]
         y = int((1 - p[1]) * dimension)
         return QPoint(x, y)
 
-    for line in lines:
+    for lineIndex, line in enumerate(lines):
+        if lineIndex in colorMap:
+            pen.setColor(colorMap[lineIndex])
+            painter.setPen(pen)
+        else:
+            pen.setColor(line_color)
+            painter.setPen(pen)
+
         if len(line) < 2:
             continue
         for i in range(len(line) - 1):

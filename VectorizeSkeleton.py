@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
+from collections import defaultdict, Counter
+
 def GetInitialLines(skeleton:np.ndarray) -> tuple[list, list]:
     #create stack
     stack = []
@@ -188,6 +190,118 @@ def NormalizePoints(points:list[tuple[int, int]], width:int, height:int) -> list
 
     return newPoints
 
+def merge_nearby_points(points: list[tuple[float, float]], polylines: list[list[int]], max_distance: float):
+    def distance(p1, p2):
+        return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
+
+    # Union-Find structure to group nearby points
+    parent = list(range(len(points)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]  # Path compression
+            i = parent[i]
+        return i
+
+    def union(i, j):
+        pi, pj = find(i), find(j)
+        if pi != pj:
+            parent[pj] = pi
+
+    # Merge nearby points
+    for i in range(len(points)):
+        for j in range(i + 1, len(points)):
+            if distance(points[i], points[j]) <= max_distance:
+                union(i, j)
+
+    # Group indices by root
+    clusters = {}
+    for idx in range(len(points)):
+        root = find(idx)
+        clusters.setdefault(root, []).append(idx)
+
+    # Compute new merged points
+    new_points = []
+    index_mapping = {}  # old_index -> new_index
+    for new_idx, cluster in enumerate(clusters.values()):
+        x_avg = sum(points[i][0] for i in cluster) / len(cluster)
+        y_avg = sum(points[i][1] for i in cluster) / len(cluster)
+        new_points.append((x_avg, y_avg))
+        for old_idx in cluster:
+            index_mapping[old_idx] = new_idx
+
+    # Update polylines with new point indices
+    new_polylines = [
+        [index_mapping[idx] for idx in polyline]
+        for polyline in polylines
+    ]
+
+    return new_polylines, new_points
+
+def merge_polylines_at_unique_endpoints(polylines: list[list[int]]) -> list[list[int]]:
+    # Count total occurrences of each point across all polylines
+    point_usage = Counter(pt for poly in polylines for pt in poly)
+    
+    # Map endpoints to the polylines that use them (start or end)
+    endpoint_map = defaultdict(list)
+    for idx, poly in enumerate(polylines):
+        if poly:
+            endpoint_map[poly[0]].append(idx)
+            endpoint_map[poly[-1]].append(idx)
+
+    merged = [False] * len(polylines)
+    result = []
+
+    for i, poly_i in enumerate(polylines):
+        if merged[i] or not poly_i:
+            continue
+
+        current_polyline = poly_i[:]
+        changed = True
+
+        while changed:
+            changed = False
+            for endpoint in [current_polyline[0], current_polyline[-1]]:
+                # Endpoint must occur exactly twice total across all polylines
+                if point_usage[endpoint] != 2:
+                    continue
+
+                # Must be used in exactly two polylines (ours and one other)
+                connections = [j for j in endpoint_map[endpoint] if not merged[j]]
+                if len(connections) != 2:
+                    continue
+
+                # Identify the other polyline
+                other_idx = [j for j in connections if j != i]
+                if not other_idx:
+                    continue
+                j = other_idx[0]
+                poly_j = polylines[j]
+
+                # Merge directionally based on the shared endpoint
+                if endpoint == current_polyline[0]:
+                    if endpoint == poly_j[0]:
+                        poly_j = poly_j[::-1]
+                    current_polyline = poly_j[:-1] + current_polyline
+                elif endpoint == current_polyline[-1]:
+                    if endpoint == poly_j[-1]:
+                        poly_j = poly_j[::-1]
+                    current_polyline = current_polyline + poly_j[1:]
+                else:
+                    continue  # Should never happen
+
+                merged[j] = True
+                changed = True
+
+                # Update i to refer to the "new" polyline in current context
+                i = i if i < j else j  # Keep lowest index as reference
+                break
+
+        merged[i] = True
+        result.append(current_polyline)
+
+    return result
+
 def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list]:
     skeleton = np.asarray(skeleton, dtype=np.int64)
     
@@ -200,12 +314,15 @@ def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list]:
 
     print("Got initial lines")
 
-    #in pixels
     maxErrorDist = 0.001
     #simplify lines
     lines, points = SimplifyLines(lines, points, maxErrorDist)
 
     lines, points = remove_unused_points(points, lines)
+
+    lines, points = merge_nearby_points(points, lines, 0.005)
+
+    lines = merge_polylines_at_unique_endpoints(lines)
 
     return lines, points
 
