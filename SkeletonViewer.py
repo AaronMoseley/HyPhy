@@ -19,6 +19,8 @@ class SkeletonViewer(QWidget):
         self.currentImageName = None
 
         self.imageTitleLabelPrefix = "File Name: "
+        self.lineLengthPrefix = "Selected Line Length: "
+        self.clumpLengthPrefix = "Selected Clump Length: "
 
         self.AddUI()
 
@@ -36,6 +38,15 @@ class SkeletonViewer(QWidget):
         self.imageTitleLabel = QLabel(self.imageTitleLabelPrefix)
         topLayout.addWidget(self.imageTitleLabel)
 
+        lengthLayout = QHBoxLayout()
+        mainLayout.addLayout(lengthLayout)
+
+        self.lineLengthLabel = QLabel(self.lineLengthPrefix + "N/A")
+        lengthLayout.addWidget(self.lineLengthLabel)
+
+        self.clumpLengthLabel = QLabel(self.clumpLengthPrefix + "N/A")
+        lengthLayout.addWidget(self.clumpLengthLabel)
+
         imageLayout = QHBoxLayout()
         mainLayout.addLayout(imageLayout)
 
@@ -47,6 +58,7 @@ class SkeletonViewer(QWidget):
         imageLayout.addWidget(self.origImageLabel)
 
         self.skeletonLabel = InteractiveSkeletonPixmap(self.imageResolution)
+        self.skeletonLabel.PolylineHighlighted.connect(self.UpdateLengthLabels)
         self.skeletonLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.skeletonLabel)
 
@@ -68,6 +80,14 @@ class SkeletonViewer(QWidget):
 
     def SetCurrentResults(self, result:OrderedDict) -> None:
         self.currentResults = result
+
+    def UpdateLengthLabels(self, lineLength:float, clumpLength:float) -> None:
+        if lineLength < 0 or clumpLength < 0:
+            self.lineLengthLabel.setText(self.lineLengthPrefix + "N/A")
+            self.clumpLengthLabel.setText(self.clumpLengthPrefix + "N/A")
+        else:
+            self.lineLengthLabel.setText(self.lineLengthPrefix + str(lineLength))
+            self.clumpLengthLabel.setText(self.clumpLengthPrefix + str(clumpLength))
 
     def SetImage(self, imageName:str) -> None:
         self.currentImageName = imageName

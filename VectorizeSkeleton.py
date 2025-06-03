@@ -320,7 +320,7 @@ def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list]:
 
     lines, points = remove_unused_points(points, lines)
 
-    lines, points = merge_nearby_points(points, lines, 0.005)
+    lines, points = merge_nearby_points(points, lines, 0.004)
 
     lines = merge_polylines_at_unique_endpoints(lines)
 
