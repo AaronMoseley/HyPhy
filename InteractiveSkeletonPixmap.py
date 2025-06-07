@@ -32,53 +32,13 @@ class InteractiveSkeletonPixmap(QLabel):
         self.selectedLineColor = QColor("purple")
         self.selectedClumpColor = QColor("red")
 
-    def SetLines(self, points:list[tuple[float, float]], lines:list[list[int]]) -> None:
+    def SetLines(self, points:list[tuple[float, float]], lines:list[list[int]], clumps:list[list[int]]) -> None:
         self.points = points
         self.lines = lines
-        self.GetClumps()
+        self.clumps = clumps
 
         pixmap = draw_lines_on_pixmap(points, lines, self.dimension)
         self.setPixmap(pixmap)
-
-    def GetClumps(self) -> None:
-        # Step 1: Build point-to-polyline index
-        point_to_polylines = {}
-        for i, polyline in enumerate(self.lines):
-            for point in polyline:
-                if point not in point_to_polylines:
-                    point_to_polylines[point] = set()
-
-                point_to_polylines[point].add(i)
-
-        # Build connectivity graph between polylines
-        graph = {}
-        for i, polyline in enumerate(self.lines):
-            if i not in graph:
-                graph[i] = set()
-
-            for point in polyline:
-                for neighbor in point_to_polylines[point]:
-                    if neighbor != i:
-                        graph[i].add(neighbor)
-
-        # Step 3: Find connected components using BFS or DFS
-        visited = set()
-        clusters = []
-
-        for i in range(len(self.lines)):
-            if i not in visited:
-                queue = deque([i])
-                cluster_indices = []
-                while queue:
-                    idx = queue.popleft()
-                    if idx not in visited:
-                        visited.add(idx)
-                        cluster_indices.append(idx)
-                        queue.extend(graph[idx] - visited)
-                # Create flat list of polylines for the cluster
-                clusters.append(cluster_indices)
-
-        self.clumps = clusters
 
     def LineToClump(self, line:int) -> int:
         for i in range(len(self.clumps)):

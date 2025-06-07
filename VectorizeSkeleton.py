@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, deque
 
 def GetInitialLines(skeleton:np.ndarray) -> tuple[list, list]:
     #create stack
@@ -302,7 +302,47 @@ def merge_polylines_at_unique_endpoints(polylines: list[list[int]]) -> list[list
 
     return result
 
-def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list]:
+def GetClusters(lines) -> list[list[int]]:
+    # Step 1: Build point-to-polyline index
+    point_to_polylines = {}
+    for i, polyline in enumerate(lines):
+        for point in polyline:
+            if point not in point_to_polylines:
+                point_to_polylines[point] = set()
+
+            point_to_polylines[point].add(i)
+
+    # Build connectivity graph between polylines
+    graph = {}
+    for i, polyline in enumerate(lines):
+        if i not in graph:
+            graph[i] = set()
+
+        for point in polyline:
+            for neighbor in point_to_polylines[point]:
+                if neighbor != i:
+                    graph[i].add(neighbor)
+
+    # Step 3: Find connected components using BFS or DFS
+    visited = set()
+    clusters = []
+
+    for i in range(len(lines)):
+        if i not in visited:
+            queue = deque([i])
+            cluster_indices = []
+            while queue:
+                idx = queue.popleft()
+                if idx not in visited:
+                    visited.add(idx)
+                    cluster_indices.append(idx)
+                    queue.extend(graph[idx] - visited)
+            # Create flat list of polylines for the cluster
+            clusters.append(cluster_indices)
+
+    return clusters
+
+def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list, list]:
     skeleton = np.asarray(skeleton, dtype=np.int64)
     
     #find initial lines
@@ -324,7 +364,9 @@ def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list]:
 
     lines = merge_polylines_at_unique_endpoints(lines)
 
-    return lines, points
+    clusters = GetClusters(lines)
+
+    return lines, points, clusters
 
 def plot_points_and_lines(points, lines):
     """

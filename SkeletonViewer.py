@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, Signal
 
 from collections import OrderedDict
 
-from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey
+from HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey
 from InteractiveSkeletonPixmap import InteractiveSkeletonPixmap
 
 class SkeletonViewer(QWidget):
@@ -95,7 +95,9 @@ class SkeletonViewer(QWidget):
         self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageName)
 
         originalImagePixmap = ArrayToPixmap(self.currentResults[imageName][originalImageKey], self.imageResolution, False)
-        self.skeletonLabel.SetLines(self.currentResults[imageName][vectorKey][pointsKey], self.currentResults[imageName][vectorKey][linesKey])
+        self.skeletonLabel.SetLines(self.currentResults[imageName][vectorKey][pointsKey], 
+                                    self.currentResults[imageName][vectorKey][linesKey], 
+                                    self.currentResults[imageName][vectorKey][clusterKey])
 
         self.origImageLabel.setPixmap(originalImagePixmap)
 

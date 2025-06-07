@@ -11,8 +11,9 @@ originalImageKey = "originalImage"
 vectorKey = "vectorized"
 linesKey = "lines"
 pointsKey = "points"
+clusterKey = "clusters"
 
-def random_number_generator(skeleton:np.ndarray):
+def random_number_generator(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]]):
     return random.uniform(0, 1)
 
 statFunctionMap = {
