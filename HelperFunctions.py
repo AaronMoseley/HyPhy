@@ -12,13 +12,45 @@ vectorKey = "vectorized"
 linesKey = "lines"
 pointsKey = "points"
 clusterKey = "clusters"
+functionKey = "function"
 
-def random_number_generator(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]]):
+functionTypeKey = "type"
+imageTypeKey = "image"
+clusterTypeKey = "cluster"
+lineTypeKey = "line"
+
+def randomNumPerImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
     return random.uniform(0, 1)
 
+def randomNumPerCluster(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+    result = []
+    
+    for _ in range(len(clusters)):
+        result.append(random.uniform(0, 1))
+
+    return result
+
+def randomNumPerLine(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+    result = []
+    
+    for _ in range(len(lines)):
+        result.append(random.uniform(0, 1))
+
+    return result
+
 statFunctionMap = {
-    "testCalc1": random_number_generator,
-    "testCalc2": random_number_generator
+    "testCalc1": {
+        functionKey: randomNumPerImage,
+        functionTypeKey: imageTypeKey
+    },
+    "testCalc2": {
+        functionKey: randomNumPerCluster,
+        functionTypeKey: clusterTypeKey
+    },
+    "testCalc3": {
+        functionKey: randomNumPerLine,
+        functionTypeKey: lineTypeKey
+    }
 }
 
 def camel_case_to_capitalized(text):

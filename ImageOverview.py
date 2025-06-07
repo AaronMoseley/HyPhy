@@ -13,7 +13,7 @@ import json
 from PIL import Image
 
 from CreateSkeleton import generate_skeletonized_images
-from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey
+from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey
 from ClickableLabel import ClickableLabel
 
 class ImageOverview(QWidget):
@@ -175,6 +175,9 @@ class ImageOverview(QWidget):
         self.calculationStatLabels = OrderedDict()
 
         for key in statFunctionMap:
+            if statFunctionMap[key][functionTypeKey] != imageTypeKey:
+                continue
+
             title = camel_case_to_capitalized(key)
             newLabel = QLabel(f"{title}: ")
             self.calculationStatLabels[key] = newLabel

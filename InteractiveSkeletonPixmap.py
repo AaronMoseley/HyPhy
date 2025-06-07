@@ -10,8 +10,8 @@ from collections import deque
 from HelperFunctions import draw_lines_on_pixmap, DistanceToLine
 
 class InteractiveSkeletonPixmap(QLabel):
-    clicked = Signal(float, float)
-    PolylineHighlighted = Signal(float, float)
+    #line length, clump length, line index, clump index
+    PolylineHighlighted = Signal(float, float, int, int)
 
     def __init__(self, dimension:int=512, parent=None):
         super().__init__(parent)
@@ -63,7 +63,7 @@ class InteractiveSkeletonPixmap(QLabel):
     def PointDistance(self, point1:tuple[float, float], point2:tuple[float, float]) -> float:
         return math.sqrt(pow(point2[0] - point1[0], 2) + pow(point2[1] - point1[1], 2))
 
-    def EmitLineLengths(self) -> None:
+    def EmitLineData(self) -> None:
         if self.selectedClumpIndex is None or self.selectedLineIndex is None:
             return
         
@@ -78,7 +78,7 @@ class InteractiveSkeletonPixmap(QLabel):
             for j in range(len(self.lines[lineIndex]) - 1):
                 selectedClumpLength += self.PointDistance(self.points[self.lines[lineIndex][j]], self.points[self.lines[lineIndex][j + 1]])
 
-        self.PolylineHighlighted.emit(selectedLineLength, selectedClumpLength)
+        self.PolylineHighlighted.emit(selectedLineLength, selectedClumpLength, self.selectedLineIndex, self.selectedClumpIndex)
 
     def mouseMoveEvent(self, event:QMouseEvent):
         x = event.x() / self.dimension
@@ -109,7 +109,7 @@ class InteractiveSkeletonPixmap(QLabel):
                 colorMap = self.GetColorMap()
                 pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension, colorMap)
                 self.setPixmap(pixmap)
-                self.EmitLineLengths()
+                self.EmitLineData()
         else:
             if self.selectedLineIndex is not None:
                 self.selectedLineIndex = None
@@ -118,4 +118,4 @@ class InteractiveSkeletonPixmap(QLabel):
                 pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension)
                 self.setPixmap(pixmap)
 
-                self.PolylineHighlighted.emit(-1, -1)
+                self.PolylineHighlighted.emit(-1, -1, -1, -1)

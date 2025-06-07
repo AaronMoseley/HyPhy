@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, Signal
 
 from collections import OrderedDict
 
-from HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey
+from HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionTypeKey, imageTypeKey, clusterTypeKey, lineTypeKey
 from InteractiveSkeletonPixmap import InteractiveSkeletonPixmap
 
 class SkeletonViewer(QWidget):
@@ -81,13 +81,36 @@ class SkeletonViewer(QWidget):
     def SetCurrentResults(self, result:OrderedDict) -> None:
         self.currentResults = result
 
-    def UpdateLengthLabels(self, lineLength:float, clumpLength:float) -> None:
+    def UpdateLengthLabels(self, lineLength:float, clumpLength:float, lineIndex:int, clumpIndex:int) -> None:
         if lineLength < 0 or clumpLength < 0:
             self.lineLengthLabel.setText(self.lineLengthPrefix + "N/A")
             self.clumpLengthLabel.setText(self.clumpLengthPrefix + "N/A")
+
+            for statsLabelKey in self.calculationStatLabels:
+                if statFunctionMap[statsLabelKey][functionTypeKey] == imageTypeKey:
+                    continue
+
+                title = camel_case_to_capitalized(statsLabelKey)
+
+                subtitle = f"(per {statFunctionMap[statsLabelKey][functionTypeKey]})"
+
+                self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: N/A")
         else:
             self.lineLengthLabel.setText(self.lineLengthPrefix + str(lineLength))
             self.clumpLengthLabel.setText(self.clumpLengthPrefix + str(clumpLength))
+
+            for statsLabelKey in self.calculationStatLabels:
+                if statFunctionMap[statsLabelKey][functionTypeKey] == imageTypeKey:
+                    continue
+
+                title = camel_case_to_capitalized(statsLabelKey)
+
+                subtitle = f"(per {statFunctionMap[statsLabelKey][functionTypeKey]})"
+
+                if statFunctionMap[statsLabelKey][functionTypeKey] == clusterTypeKey:
+                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[self.currentImageName][statsLabelKey][clumpIndex]}")
+                elif statFunctionMap[statsLabelKey][functionTypeKey] == lineTypeKey:
+                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[self.currentImageName][statsLabelKey][lineIndex]}")
 
     def SetImage(self, imageName:str) -> None:
         self.currentImageName = imageName
@@ -104,4 +127,9 @@ class SkeletonViewer(QWidget):
         for statsLabelKey in self.calculationStatLabels:
             title = camel_case_to_capitalized(statsLabelKey)
 
-            self.calculationStatLabels[statsLabelKey].setText(f"{title}: {self.currentResults[imageName][statsLabelKey]}")
+            subtitle = f"(per {statFunctionMap[statsLabelKey][functionTypeKey]})"
+
+            if statFunctionMap[statsLabelKey][functionTypeKey] == imageTypeKey:
+                self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[imageName][statsLabelKey]}")
+            else:
+                self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: N/A")

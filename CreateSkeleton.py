@@ -11,7 +11,7 @@ from skimage import morphology
 
 from VectorizeSkeleton import VectorizeSkeleton
 
-from HelperFunctions import skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey
+from HelperFunctions import skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionKey
 
 def top_hat(image:np.ndarray) -> np.ndarray:
     footprint = morphology.disk(1)
@@ -191,7 +191,7 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
         currResult[vectorKey] = vectors
 
         for key in statFunctionMap:
-            currResult[key] = statFunctionMap[key](imgArray, lines, points)
+            currResult[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
 
         result[fileName] = currResult
 
