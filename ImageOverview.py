@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QComboBox
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt, Signal
 
@@ -13,7 +13,7 @@ import json
 from PIL import Image
 
 from CreateSkeleton import generate_skeletonized_images
-from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey
+from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey, timestampKey, sampleKey
 from ClickableLabel import ClickableLabel
 
 class ImageOverview(QWidget):
@@ -42,6 +42,9 @@ class ImageOverview(QWidget):
 
         self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
         self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
+
+        self.sampleToFiles = {}
+        self.currentFileList = []
 
         if os.path.exists(self.initSettingsFilePath):
             self.LoadInitializationSettings()
@@ -116,6 +119,12 @@ class ImageOverview(QWidget):
             img = img.convert("RGB")
             img.save(os.path.join(outputDir, newFileName))
 
+            fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
+            timestamp = int(fileNameSplit[-1])
+
+            result[fileName][timestampKey] = timestamp
+            result[fileName][sampleKey] = "_".join(fileNameSplit[:-1])
+
             jsonElement = {}
             for key in result[fileName]:
                 if key == originalImageKey or key == skeletonKey:
@@ -131,6 +140,8 @@ class ImageOverview(QWidget):
         jsonFile = open(jsonFilePath, "w")
         json.dump(jsonFileResult, jsonFile, indent=4)
         jsonFile.close()
+
+        self.GetSamples()
 
         self.AddSkeletonUI()
 
@@ -148,10 +159,15 @@ class ImageOverview(QWidget):
         skeletonLayout = QVBoxLayout()
         self.mainLayout.addLayout(skeletonLayout)
 
-        self.imageTitleLabel = QLabel(self.imageTitleLabelPrefix)
-        self.imageTitleLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sampleDropdown = QComboBox()
+        self.sampleDropdown.addItems(list(self.sampleToFiles.keys()))
+        self.sampleDropdown.currentTextChanged.connect(self.LoadNewSample)
+        self.sampleDropdown.setCurrentIndex(0)
+        skeletonLayout.addWidget(self.sampleDropdown)
 
-        skeletonLayout.addWidget(self.imageTitleLabel)
+        self.timestampLabel = QLabel("Timestamp: N/A")
+        self.timestampLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        skeletonLayout.addWidget(self.timestampLabel)
 
         middleSkeletonLayout = QHBoxLayout()
         skeletonLayout.addLayout(middleSkeletonLayout)
@@ -159,7 +175,8 @@ class ImageOverview(QWidget):
         imageLayout = QVBoxLayout()
         middleSkeletonLayout.addLayout(imageLayout)
         
-        self.originalImageLabel = QLabel()
+        self.originalImageLabel = ClickableLabel()
+        self.originalImageLabel.clicked.connect(self.GoIntoSkeletonView)
         self.skeletonLabel = ClickableLabel()
         self.skeletonLabel.clicked.connect(self.GoIntoSkeletonView)
 
@@ -203,17 +220,23 @@ class ImageOverview(QWidget):
         scrollButtonLayout.addWidget(self.rightButton)
         self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
+        self.LoadNewSample(list(self.sampleToFiles.keys())[0])
+
+    def LoadNewSample(self, value:str) -> None:
+        self.currentFileList = self.sampleToFiles[value]
+
         self.LoadImageIntoUI(0)
 
     def GoIntoSkeletonView(self) -> None:
-        self.ClickedOnSkeleton.emit(list(self.currentResults.keys())[self.currentIndex])
+        self.ClickedOnSkeleton.emit(self.currentFileList[self.currentIndex])
 
     def LoadImageIntoUI(self, index:int) -> None:
         self.currentIndex = index
 
-        imageFileName = list(self.currentResults.keys())[index]
+        imageFileName = self.currentFileList[index]
 
-        self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageFileName)
+        #self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageFileName)
+        self.timestampLabel.setText(f"Timestamp: {self.currentResults[imageFileName][timestampKey]}")
 
         originalImagePixmap = ArrayToPixmap(self.currentResults[imageFileName][originalImageKey], 256, False)
         skeletonPixmap = draw_lines_on_pixmap(self.currentResults[imageFileName][vectorKey][pointsKey], self.currentResults[imageFileName][vectorKey][linesKey], 256)
@@ -227,7 +250,7 @@ class ImageOverview(QWidget):
             self.calculationStatLabels[statsLabelKey].setText(f"{title}: {self.currentResults[imageFileName][statsLabelKey]}")
 
     def ChangeIndex(self, direction:int) -> None:
-        if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentResults):
+        if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
             return
         
         self.LoadImageIntoUI(self.currentIndex + direction)
@@ -237,7 +260,7 @@ class ImageOverview(QWidget):
         elif not self.leftButton.isEnabled():
             self.leftButton.setEnabled(True)
 
-        if self.currentIndex == len(self.currentResults) - 1:
+        if self.currentIndex == len(self.currentFileList) - 1:
             self.rightButton.setEnabled(False)
         elif not self.rightButton.isEnabled():
             self.rightButton.setEnabled(True)
@@ -299,6 +322,9 @@ class ImageOverview(QWidget):
 
             currEntry[vectorKey] = stats[origImageFileName][vectorKey]
 
+            currEntry[sampleKey] = stats[origImageFileName][sampleKey]
+            currEntry[timestampKey] = stats[origImageFileName][timestampKey]
+
             #add in stats
             for statsKey in statFunctionMap:
                 if statsKey not in stats[origImageFileName]:
@@ -307,6 +333,8 @@ class ImageOverview(QWidget):
                     currEntry[statsKey] = stats[origImageFileName][statsKey]
 
             self.currentResults[origImageFileName] = currEntry
+
+        self.GetSamples()
 
         self.AddSkeletonUI()
 
@@ -324,6 +352,13 @@ class ImageOverview(QWidget):
         initFile = open(self.initSettingsFilePath, "w")
         json.dump(initializationSettings, initFile, indent=4)
         initFile.close()
+
+    def GetSamples(self) -> None:
+        for key in self.currentResults:
+            if self.currentResults[key][sampleKey] not in self.sampleToFiles:
+                self.sampleToFiles[self.currentResults[key][sampleKey]] = [key]
+            else:
+                self.sampleToFiles[self.currentResults[key][sampleKey]].append(key)
 
     def LoadInitializationSettings(self):
         initFile = open(self.initSettingsFilePath, "r")

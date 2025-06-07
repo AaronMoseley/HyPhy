@@ -352,8 +352,6 @@ def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list, list]:
 
     points = NormalizePoints(points, skeleton.shape[1], skeleton.shape[0])
 
-    print("Got initial lines")
-
     maxErrorDist = 0.001
     #simplify lines
     lines, points = SimplifyLines(lines, points, maxErrorDist)

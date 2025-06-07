@@ -195,6 +195,8 @@ def generate_skeletonized_images(directory:str) -> OrderedDict:
 
         result[fileName] = currResult
 
+        print(f"Created skeleton for {fileName}")
+
     return result
 
 if __name__ == "__main__":

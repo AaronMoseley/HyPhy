@@ -19,6 +19,9 @@ imageTypeKey = "image"
 clusterTypeKey = "cluster"
 lineTypeKey = "line"
 
+timestampKey = "timestamp"
+sampleKey = "sample"
+
 def randomNumPerImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
     return random.uniform(0, 1)
 
