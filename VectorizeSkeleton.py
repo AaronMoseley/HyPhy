@@ -362,9 +362,48 @@ def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list, list]:
 
     lines = merge_polylines_at_unique_endpoints(lines)
 
+    lines = RemoveZeroLengthLines(points, lines)
+
     clusters = GetClusters(lines)
 
     return lines, points, clusters
+
+def RemoveZeroLengthLines(points, lines) -> list:
+    minLength = 0.01
+
+    lineIndex = 0
+
+    while lineIndex < len(lines):
+        totalLength = 0.0
+
+        lines[lineIndex] = remove_consecutive_duplicates(lines[lineIndex])
+
+        currentLine = lines[lineIndex]
+
+        for i in range(len(currentLine) - 1):
+            point1 = points[currentLine[i]]
+            point2 = points[currentLine[i + 1]]
+
+            segmentLength = math.sqrt(pow(point2[0] - point1[0], 2) + pow(point2[1] - point1[1], 2))
+
+            totalLength += segmentLength
+
+        if totalLength < minLength:
+            del lines[lineIndex]
+        else:
+            lineIndex += 1
+
+    return lines
+
+def remove_consecutive_duplicates(lst):
+    if not lst:
+        return []
+    
+    result = [lst[0]]  # Start with the first element
+    for item in lst[1:]:
+        if item != result[-1]:
+            result.append(item)
+    return result
 
 def plot_points_and_lines(points, lines):
     """

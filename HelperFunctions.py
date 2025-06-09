@@ -5,6 +5,8 @@ import re
 import random
 import numpy as np
 import cv2
+from scipy.stats import linregress
+import math
 
 skeletonKey = "skeleton"
 originalImageKey = "originalImage"
@@ -41,17 +43,141 @@ def randomNumPerLine(skeleton:np.ndarray, lines:list[list[int]], points:list[tup
 
     return result
 
+#fractal dimension
+def fractalDimension(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
+    # Ensure the array is binary
+    array = np.array(skeleton, dtype=bool)
+
+    # Get the array dimensions
+    min_dim = min(array.shape)
+
+    # Box sizes (powers of 2)
+    box_sizes = 2 ** np.arange(int(np.log2(min_dim)))
+
+    box_counts = []
+    for box_size in box_sizes:
+        # Count the number of boxes that contain at least one "1"
+        box_count = 0
+        for i in range(0, array.shape[0] - box_size + 1, box_size):
+            for j in range(0, array.shape[1] - box_size + 1, box_size):
+                if np.any(array[i:i+box_size, j:j+box_size]):
+                    box_count += 1
+        box_counts.append(box_count)
+
+    # Convert to numpy arrays
+    box_sizes = np.array(box_sizes)
+    box_counts = np.array(box_counts)
+
+    # Use linear regression to fit a line to log(box_counts) vs log(1/box_size)
+    slope, _, _, _, _ = linregress(np.log(1/box_sizes), np.log(box_counts))
+
+    # The slope of the line is the fractal dimension
+    return slope
+
+#number of lines in image
+def numLinesInImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
+    return len(lines)
+
+#number of clumps in image
+def numClumpsInImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
+    return len(clusters)
+
+#number of lines in each clump
+def numLinesInClump(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[int]:
+    result = [len(cluster) for cluster in clusters]
+    return result
+
+#average length of lines in clump
+def averageLengthOfLinesInClump(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+    result = []
+
+    for currentLines in clusters:
+        totalLength = 0.0
+
+        for lineIndex in currentLines:
+            currentLine = lines[lineIndex]
+
+            for i in range(len(currentLine) - 1):
+                point1 = points[currentLine[i]]
+                point2 = points[currentLine[i + 1]]
+
+                segmentLength = math.sqrt(pow(point2[0] - point1[0], 2) + pow(point2[1] - point1[1], 2))
+
+                totalLength += segmentLength
+
+        averageLength = totalLength / len(currentLines)
+
+        result.append(averageLength)
+
+    return result
+
+#whether each line is straight
+def isLineStraight(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[bool]:
+    requirementForStraight = 0.95
+    
+    result = []
+
+    for line in lines:
+        numPointsInLine = len(line)
+        
+        if numPointsInLine <= 2:
+            result.append(True)
+            continue
+
+        startPoint = points[line[0]]
+        endPoint = points[line[-1]]
+        midPoint = points[line[numPointsInLine // 2]]
+
+        startToEnd = (endPoint[0] - startPoint[0], endPoint[1] - startPoint[1])
+        startToEndLength = math.sqrt(pow(startToEnd[0], 2) + pow(startToEnd[1], 2))
+
+        if startToEndLength < 0.01:
+            result.append(True)
+            continue
+
+        startToEnd = (startToEnd[0] / startToEndLength, startToEnd[1] / startToEndLength)
+
+        startToMid = (midPoint[0] - startPoint[0], midPoint[1] - startPoint[1])
+        startToMidLength = math.sqrt(pow(startToMid[0], 2) + pow(startToMid[1], 2))
+
+        if startToMidLength < 0.01:
+            result.append(True)
+            continue
+
+        startToMid = (startToMid[0] / startToMidLength, startToMid[1] / startToMidLength)
+
+        similarity = abs((startToEnd[0] * startToMid[0]) + (startToEnd[1] * startToMid[1]))
+
+        if similarity > requirementForStraight:
+            result.append(True)
+        else:
+            result.append(False)
+
+    return result
+
 statFunctionMap = {
-    "testCalc1": {
-        functionKey: randomNumPerImage,
+    "fractalDimension": {
+        functionKey: fractalDimension,
         functionTypeKey: imageTypeKey
     },
-    "testCalc2": {
-        functionKey: randomNumPerCluster,
+    "linesInImage": {
+        functionKey: numLinesInImage,
+        functionTypeKey: imageTypeKey
+    },
+    "clustersInImage": {
+        functionKey: numClumpsInImage,
+        functionTypeKey: imageTypeKey
+    },
+    "linesInCluster": {
+        functionKey: numLinesInClump,
         functionTypeKey: clusterTypeKey
     },
-    "testCalc3": {
-        functionKey: randomNumPerLine,
+    "averageLineLength": {
+        functionKey: averageLengthOfLinesInClump,
+        functionTypeKey: clusterTypeKey
+    },
+    "isLineStraight": {
+        functionKey: isLineStraight,
         functionTypeKey: lineTypeKey
     }
 }
