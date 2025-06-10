@@ -269,7 +269,7 @@ class ImageOverview(QWidget):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
 
         if directory:
-            directory = directory.replace("/", "\\")
+            directory = directory.replace("\\", "/")
             lineEdit.setText(directory)
 
     def LoadPreviousResults(self) -> None:
