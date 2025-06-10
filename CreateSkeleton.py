@@ -42,7 +42,7 @@ def remove_noisy_islands(binary_array, max_perimeter_area_ratio=0.5):
 
 def count_black_neighbors(binary_array, x, y):
     neighbors = binary_array[x-1:x+2, y-1:y+2]
-    return 8 - min(np.sum(neighbors), 8)  # count black (0) pixels
+    return 8 - np.sum(neighbors, dtype=np.int64)  # count black (0) pixels
 
 def remove_structurally_noisy_islands(binary_array, max_avg_black_neighbors=4.0):
     # Label connected white regions
