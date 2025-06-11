@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QComboBox
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QComboBox, QApplication
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt, Signal
 
@@ -16,6 +16,8 @@ from CreateSkeleton import generate_skeletonized_images
 from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey, timestampKey, sampleKey
 from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
+from ProgressBar import ProgressBarPopup
+import time
 
 class ImageOverview(QWidget):
     ClickedOnSkeleton = Signal(str)
@@ -35,6 +37,8 @@ class ImageOverview(QWidget):
 
         self.defaultInputDirectory = ""
         self.defaultOutputDirectory = ""
+
+        self.currentSample = ""
 
         self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
 
@@ -88,9 +92,19 @@ class ImageOverview(QWidget):
 
         outputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.outputDirLineEdit))
 
-        generateSkeletonsButton = QPushButton("Generate Skeletons")
+        generateSkeletonsButton = QPushButton("Generate All Skeletons")
         generateSkeletonsButton.clicked.connect(self.GenerateSkeletons)
         layout.addWidget(generateSkeletonsButton)
+
+        self.generateIndividualSkeletonButton = QPushButton("Generate Single Skeleton")
+        self.generateIndividualSkeletonButton.clicked.connect(self.GenerateSingleSkeleton)
+        layout.addWidget(self.generateIndividualSkeletonButton)
+        self.generateIndividualSkeletonButton.setEnabled(False)
+
+        self.generateSampleSkeletonsButton = QPushButton("Generate Skeletons for Current Sample")
+        self.generateSampleSkeletonsButton.clicked.connect(self.GenerateSampleSkeletons)
+        layout.addWidget(self.generateSampleSkeletonsButton)
+        self.generateSampleSkeletonsButton.setEnabled(False)
 
         self.centerThresholdEdit = SliderLineEditCombo("Center Threshold", defaultVal=0.515, min_val=0.0, max_val=1.0, decimals=3)
         layout.addLayout(self.centerThresholdEdit)
@@ -107,9 +121,7 @@ class ImageOverview(QWidget):
         self.blurSigmaEdit = SliderLineEditCombo("Gaussian Blur Sigma", defaultVal=1.2, min_val=0.0, max_val=4.0)
         layout.addLayout(self.blurSigmaEdit)
 
-    def GenerateSkeletons(self) -> None:
-        self.createdSkeletons = True
-        
+    def ReadDirectories(self) -> None:
         inputDir = self.inputDirLineEdit.text()
         outputDir = self.outputDirLineEdit.text()
 
@@ -120,51 +132,98 @@ class ImageOverview(QWidget):
         #create sample map based on input directory
         self.GetSamples(inputDir)
 
-        if not os.path.exists(os.path.join(outputDir, "Calculations")):
-            os.makedirs(os.path.join(outputDir, "Calculations"))
+        if not os.path.exists(os.path.join(self.defaultOutputDirectory, "Calculations")):
+            os.makedirs(os.path.join(self.defaultOutputDirectory, "Calculations"))
+
+    def CreateSkeleton(self, fileName:str, sample:str) -> None:
+        #get result from skeleton creator
+        result = generate_skeletonized_images(self.defaultInputDirectory, fileName,
+                                                self.centerThresholdEdit.value(),
+                                                self.edgeThresholdEdit.value(),
+                                                int(self.minIslandEdit.value()),
+                                                self.noiseToleranceEdit.value(),
+                                                self.blurSigmaEdit.value())
+
+        #save skeleton image file
+        baseFileName, extension = os.path.splitext(fileName)
+
+        newBaseFileName = baseFileName + "_skeleton"
+        newFileName = newBaseFileName + extension
+
+        result[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
+
+        imgArray = result[skeletonKey]
+        img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
+        img = img.convert("RGB")
+        img.save(os.path.join(self.defaultOutputDirectory, newFileName))
+
+        #save JSON file for image
+        fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
+        timestamp = int(fileNameSplit[-1])
+
+        result[timestampKey] = timestamp
+        result[sampleKey] = sample
+
+        jsonElement = {}
+        for key in result:
+            jsonElement[key] = result[key]
+
+        jsonElement[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
+        jsonElement[skeletonKey] = os.path.join(self.defaultOutputDirectory, newFileName)
+
+        jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
+        jsonFile = open(jsonFilePath, "w")
+        json.dump(jsonElement, jsonFile, indent=4)
+        jsonFile.close()
+
+    def GenerateSingleSkeleton(self) -> None:
+        self.ReadDirectories()
+
+        progressBar = ProgressBarPopup(maximum=2)
+        progressBar.increment()
+        progressBar.show()
+        QApplication.processEvents()
+
+        self.CreateSkeleton(self.currentFileList[self.currentIndex], self.currentSample)
+
+        progressBar.increment()
+        QApplication.processEvents()
+
+        self.LoadImageIntoUI(self.currentIndex)
+
+    def GenerateSampleSkeletons(self) -> None:
+        self.ReadDirectories()
+
+        progressBar = ProgressBarPopup(maximum=len(self.sampleToFiles[self.currentSample]))
+        progressBar.show()
+        QApplication.processEvents()
+
+        for fileName in self.sampleToFiles[self.currentSample]:
+            self.CreateSkeleton(fileName, self.currentSample)
+            progressBar.increment()
+            QApplication.processEvents()
+
+        self.LoadImageIntoUI(self.currentIndex)
+
+    def GenerateSkeletons(self) -> None:
+        self.createdSkeletons = True
+        
+        self.ReadDirectories()
+
+        totalFiles = 0
+        for sample in self.sampleToFiles:
+            totalFiles += len(self.sampleToFiles[sample])
+
+        progressBar = ProgressBarPopup(maximum=totalFiles)
+        progressBar.show()
+        QApplication.processEvents()
 
         #loop through samples/files
         for sample in self.sampleToFiles:
             for fileName in self.sampleToFiles[sample]:
-                #get result from skeleton creator
-                result = generate_skeletonized_images(inputDir, fileName,
-                                                      self.centerThresholdEdit.value(),
-                                                      self.edgeThresholdEdit.value(),
-                                                      int(self.minIslandEdit.value()),
-                                                      self.noiseToleranceEdit.value(),
-                                                      self.blurSigmaEdit.value())
-
-                #save skeleton image file
-                baseFileName, extension = os.path.splitext(fileName)
-
-                newBaseFileName = baseFileName + "_skeleton"
-                newFileName = newBaseFileName + extension
-
-                result[originalImageKey] = os.path.join(inputDir, fileName)
-
-                imgArray = result[skeletonKey]
-                img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
-                img = img.convert("RGB")
-                img.save(os.path.join(outputDir, newFileName))
-
-                #save JSON file for image
-                fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
-                timestamp = int(fileNameSplit[-1])
-
-                result[timestampKey] = timestamp
-                result[sampleKey] = sample
-
-                jsonElement = {}
-                for key in result:
-                    jsonElement[key] = result[key]
-
-                jsonElement[originalImageKey] = os.path.join(inputDir, fileName)
-                jsonElement[skeletonKey] = os.path.join(outputDir, newFileName)
-
-                jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
-                jsonFile = open(jsonFilePath, "w")
-                json.dump(jsonElement, jsonFile, indent=4)
-                jsonFile.close()
+                self.CreateSkeleton(fileName, sample)
+                progressBar.increment()
+                QApplication.processEvents()
 
         #add skeleton UI
         self.AddSkeletonUI()
@@ -177,6 +236,9 @@ class ImageOverview(QWidget):
         self.skeletonUIAdded = True
         
         self.resize(1000, 500)
+
+        self.generateIndividualSkeletonButton.setEnabled(True)
+        self.generateSampleSkeletonsButton.setEnabled(True)
 
         skeletonLayout = QVBoxLayout()
         self.mainLayout.addLayout(skeletonLayout)
@@ -246,6 +308,8 @@ class ImageOverview(QWidget):
 
     def LoadNewSample(self, value:str) -> None:
         self.currentFileList = self.sampleToFiles[value]
+
+        self.currentSample = value
 
         self.LoadImageIntoUI(0)
 
@@ -342,6 +406,8 @@ class ImageOverview(QWidget):
     def GetSamples(self, inputDirectory:str) -> None:
         fileNames = os.listdir(inputDirectory)
         
+        self.sampleToFiles = {}
+
         for fileName in fileNames:
             fileNameParts = os.path.splitext(fileName)[0].split("_")
             del fileNameParts[-1]
