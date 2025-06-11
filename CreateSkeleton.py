@@ -143,7 +143,7 @@ def smooth_binary_array(binary_array, sigma=1.0):
 
     return smoothed_binary
 
-def generate_skeletonized_images(directory:str, fileName:str) -> dict:
+def generate_skeletonized_images(directory:str, fileName:str, centerThreshold:float, edgeThreshold:float, minWhiteIslandSize:int, noiseTolerance:float, gaussianBlurSigma:float) -> dict:
     if not fileName.endswith(".tif") and not fileName.endswith(".png"):
         return None
     
@@ -163,13 +163,13 @@ def generate_skeletonized_images(directory:str, fileName:str) -> dict:
     originalImageArray -= minValue
     originalImageArray /= maxValue
 
-    thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.515, 0.12)
+    thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], centerThreshold, edgeThreshold)
 
     imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
 
-    imgArray = remove_small_white_islands(imgArray, 800)
-    imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=0.15)
-    imgArray = smooth_binary_array(imgArray, sigma=1.2)
+    imgArray = remove_small_white_islands(imgArray, minWhiteIslandSize)
+    imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=noiseTolerance)
+    imgArray = smooth_binary_array(imgArray, sigma=gaussianBlurSigma)
     imgArray = skeletonize(imgArray)
 
     result = {}

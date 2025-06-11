@@ -15,6 +15,7 @@ from PIL import Image
 from CreateSkeleton import generate_skeletonized_images
 from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey, timestampKey, sampleKey
 from ClickableLabel import ClickableLabel
+from SliderLineEditCombo import SliderLineEditCombo
 
 class ImageOverview(QWidget):
     ClickedOnSkeleton = Signal(str)
@@ -91,6 +92,21 @@ class ImageOverview(QWidget):
         generateSkeletonsButton.clicked.connect(self.GenerateSkeletons)
         layout.addWidget(generateSkeletonsButton)
 
+        self.centerThresholdEdit = SliderLineEditCombo("Center Threshold", defaultVal=0.515, min_val=0.0, max_val=1.0, decimals=3)
+        layout.addLayout(self.centerThresholdEdit)
+
+        self.edgeThresholdEdit = SliderLineEditCombo("Edge Threshold", defaultVal=0.12, min_val=0.0, max_val=1.0, decimals=3)
+        layout.addLayout(self.edgeThresholdEdit)
+
+        self.minIslandEdit = SliderLineEditCombo("Minimum Size for White Areas (pixels)", defaultVal=800.0, min_val=100, max_val=1500, decimals=0)
+        layout.addLayout(self.minIslandEdit)
+
+        self.noiseToleranceEdit = SliderLineEditCombo("Noisy Island Tolerance", defaultVal=0.15, min_val=0.0, max_val=4.0)
+        layout.addLayout(self.noiseToleranceEdit)
+
+        self.blurSigmaEdit = SliderLineEditCombo("Gaussian Blur Sigma", defaultVal=1.2, min_val=0.0, max_val=4.0)
+        layout.addLayout(self.blurSigmaEdit)
+
     def GenerateSkeletons(self) -> None:
         self.createdSkeletons = True
         
@@ -111,7 +127,12 @@ class ImageOverview(QWidget):
         for sample in self.sampleToFiles:
             for fileName in self.sampleToFiles[sample]:
                 #get result from skeleton creator
-                result = generate_skeletonized_images(inputDir, fileName)
+                result = generate_skeletonized_images(inputDir, fileName,
+                                                      self.centerThresholdEdit.value(),
+                                                      self.edgeThresholdEdit.value(),
+                                                      int(self.minIslandEdit.value()),
+                                                      self.noiseToleranceEdit.value(),
+                                                      self.blurSigmaEdit.value())
 
                 #save skeleton image file
                 baseFileName, extension = os.path.splitext(fileName)
