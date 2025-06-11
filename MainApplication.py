@@ -13,7 +13,7 @@ class MainApplication(QMainWindow):
         
         self.skeletonViewer = SkeletonViewer()
         self.skeletonViewer.BackButtonPressed.connect(self.BackToOverview)
-        self.overview.GeneratedResults.connect(self.skeletonViewer.SetCurrentResults)
+        self.overview.LoadedNewImage.connect(self.skeletonViewer.SetCurrentImage)
 
         self.overview.LoadPreviousResults()
 

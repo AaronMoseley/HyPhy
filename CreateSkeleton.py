@@ -143,59 +143,53 @@ def smooth_binary_array(binary_array, sigma=1.0):
 
     return smoothed_binary
 
-def generate_skeletonized_images(directory:str) -> OrderedDict:
-    result = OrderedDict()
+def generate_skeletonized_images(directory:str, fileName:str) -> dict:
+    if not fileName.endswith(".tif") and not fileName.endswith(".png"):
+        return None
+    
+    filePath = os.path.join(directory, fileName)
+    img = Image.open(filePath)
 
-    fileNames = os.listdir(directory)
-    for fileName in fileNames:
-        if not fileName.endswith(".tif") and not fileName.endswith(".png"):
-            continue
-        
-        filePath = os.path.join(directory, fileName)
-        img = Image.open(filePath)
+    originalImageArray = np.asarray(img, dtype=np.float64)
 
-        originalImageArray = np.asarray(img, dtype=np.float64)
+    imgArray = np.asarray(img, dtype=np.float64)
 
-        imgArray = np.asarray(img, dtype=np.float64)
+    maxValue = np.max(imgArray)
+    minValue = np.min(imgArray)
+    imgArray -= minValue
+    maxValue -= minValue
+    imgArray /= maxValue
 
-        maxValue = np.max(imgArray)
-        minValue = np.min(imgArray)
-        imgArray -= minValue
-        maxValue -= minValue
-        imgArray /= maxValue
+    originalImageArray -= minValue
+    originalImageArray /= maxValue
 
-        originalImageArray -= minValue
-        originalImageArray /= maxValue
+    thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.515, 0.12)
 
-        thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], 0.515, 0.12)
+    imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
 
-        imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
+    imgArray = remove_small_white_islands(imgArray, 800)
+    imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=0.15)
+    imgArray = smooth_binary_array(imgArray, sigma=1.2)
+    imgArray = skeletonize(imgArray)
 
-        imgArray = remove_small_white_islands(imgArray, 800)
-        imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=0.15)
-        imgArray = smooth_binary_array(imgArray, sigma=1.2)
-        imgArray = skeletonize(imgArray)
+    result = {}
+    result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
+    result[originalImageKey] = np.asarray(originalImageArray, dtype=np.float64)
 
-        currResult = {}
-        currResult[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
-        currResult[originalImageKey] = np.asarray(originalImageArray, dtype=np.float64)
+    lines, points, clusters = VectorizeSkeleton(imgArray)
 
-        lines, points, clusters = VectorizeSkeleton(imgArray)
+    vectors = {
+        linesKey: lines,
+        pointsKey: points,
+        clusterKey: clusters
+    }
 
-        vectors = {
-            linesKey: lines,
-            pointsKey: points,
-            clusterKey: clusters
-        }
+    result[vectorKey] = vectors
 
-        currResult[vectorKey] = vectors
+    for key in statFunctionMap:
+        result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
 
-        for key in statFunctionMap:
-            currResult[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
-
-        result[fileName] = currResult
-
-        print(f"Created skeleton for {fileName}")
+    print(f"Created skeleton for {fileName}")
 
     return result
 

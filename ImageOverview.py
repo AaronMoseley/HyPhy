@@ -18,12 +18,11 @@ from ClickableLabel import ClickableLabel
 
 class ImageOverview(QWidget):
     ClickedOnSkeleton = Signal(str)
-    GeneratedResults = Signal(OrderedDict)
+    LoadedNewImage = Signal(dict)
 
     def __init__(self) -> None:
         super().__init__()
 
-        self.currentResults = OrderedDict()
         self.currentIndex = 0
 
         self.imageTitleLabelPrefix = "File Name: "
@@ -35,8 +34,6 @@ class ImageOverview(QWidget):
 
         self.defaultInputDirectory = ""
         self.defaultOutputDirectory = ""
-
-        self.statsFileName = "calculations.json"
 
         self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
 
@@ -104,48 +101,52 @@ class ImageOverview(QWidget):
         self.defaultOutputDirectory = outputDir
         self.CreateInitializationSettings()
 
-        result = generate_skeletonized_images(inputDir)
+        #create sample map based on input directory
+        self.GetSamples(inputDir)
 
-        jsonFileResult = {}
+        if not os.path.exists(os.path.join(outputDir, "Calculations")):
+            os.makedirs(os.path.join(outputDir, "Calculations"))
 
-        for fileName in result:
-            baseFileName, extension = os.path.splitext(fileName)
+        #loop through samples/files
+        for sample in self.sampleToFiles:
+            for fileName in self.sampleToFiles[sample]:
+                #get result from skeleton creator
+                result = generate_skeletonized_images(inputDir, fileName)
 
-            newBaseFileName = baseFileName + "_skeleton"
-            newFileName = newBaseFileName + extension
+                #save skeleton image file
+                baseFileName, extension = os.path.splitext(fileName)
 
-            imgArray = result[fileName][skeletonKey]
-            img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
-            img = img.convert("RGB")
-            img.save(os.path.join(outputDir, newFileName))
+                newBaseFileName = baseFileName + "_skeleton"
+                newFileName = newBaseFileName + extension
 
-            fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
-            timestamp = int(fileNameSplit[-1])
+                result[originalImageKey] = os.path.join(inputDir, fileName)
 
-            result[fileName][timestampKey] = timestamp
-            result[fileName][sampleKey] = "_".join(fileNameSplit[:-1])
+                imgArray = result[skeletonKey]
+                img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
+                img = img.convert("RGB")
+                img.save(os.path.join(outputDir, newFileName))
 
-            jsonElement = {}
-            for key in result[fileName]:
-                if key == originalImageKey or key == skeletonKey:
-                    continue
+                #save JSON file for image
+                fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
+                timestamp = int(fileNameSplit[-1])
 
-                jsonElement[key] = result[fileName][key]
+                result[timestampKey] = timestamp
+                result[sampleKey] = sample
 
-            jsonFileResult[fileName] = jsonElement
+                jsonElement = {}
+                for key in result:
+                    jsonElement[key] = result[key]
 
-        self.currentResults = result
+                jsonElement[originalImageKey] = os.path.join(inputDir, fileName)
+                jsonElement[skeletonKey] = os.path.join(outputDir, newFileName)
 
-        jsonFilePath = os.path.join(self.outputDirLineEdit.text(), self.statsFileName)
-        jsonFile = open(jsonFilePath, "w")
-        json.dump(jsonFileResult, jsonFile, indent=4)
-        jsonFile.close()
+                jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
+                jsonFile = open(jsonFilePath, "w")
+                json.dump(jsonElement, jsonFile, indent=4)
+                jsonFile.close()
 
-        self.GetSamples()
-
+        #add skeleton UI
         self.AddSkeletonUI()
-
-        self.GeneratedResults.emit(self.currentResults)
 
     def AddSkeletonUI(self) -> None:
         if self.skeletonUIAdded:
@@ -235,11 +236,27 @@ class ImageOverview(QWidget):
 
         imageFileName = self.currentFileList[index]
 
-        #self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageFileName)
-        self.timestampLabel.setText(f"Timestamp: {self.currentResults[imageFileName][timestampKey]}")
+        #load calculation file
+        calculationFileName = os.path.splitext(imageFileName)[0] + "_calculations.json"
+        calculationFilePath = os.path.join(self.defaultOutputDirectory, "Calculations", calculationFileName)
 
-        originalImagePixmap = ArrayToPixmap(self.currentResults[imageFileName][originalImageKey], 256, False)
-        skeletonPixmap = draw_lines_on_pixmap(self.currentResults[imageFileName][vectorKey][pointsKey], self.currentResults[imageFileName][vectorKey][linesKey], 256)
+        calculationFile = open(calculationFilePath, "r")
+        calculations = json.load(calculationFile)
+        calculationFile.close()
+
+        self.timestampLabel.setText(f"Timestamp: {calculations[timestampKey]}")
+
+        originalImage = Image.open(os.path.join(self.defaultInputDirectory, imageFileName))
+        originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
+
+        maxValue = np.max(originalImageArray)
+        minValue = np.min(originalImageArray)
+        originalImageArray -= minValue
+        maxValue -= minValue
+        originalImageArray /= maxValue
+
+        originalImagePixmap = ArrayToPixmap(originalImageArray, 256, False)
+        skeletonPixmap = draw_lines_on_pixmap(calculations[vectorKey][pointsKey], calculations[vectorKey][linesKey], 256)
 
         self.originalImageLabel.setPixmap(originalImagePixmap)
         self.skeletonLabel.setPixmap(skeletonPixmap)
@@ -247,7 +264,9 @@ class ImageOverview(QWidget):
         for statsLabelKey in self.calculationStatLabels:
             title = camel_case_to_capitalized(statsLabelKey)
 
-            self.calculationStatLabels[statsLabelKey].setText(f"{title}: {self.currentResults[imageFileName][statsLabelKey]}")
+            self.calculationStatLabels[statsLabelKey].setText(f"{title}: {calculations[statsLabelKey]}")
+
+        self.LoadedNewImage.emit(calculations)
 
     def ChangeIndex(self, direction:int) -> None:
         if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
@@ -279,15 +298,14 @@ class ImageOverview(QWidget):
         if not os.path.exists(self.defaultOutputDirectory):
             return
         
-        if not os.path.exists(os.path.join(self.defaultOutputDirectory, self.statsFileName)):
+        if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)):
             return
-        
+
+        """
         #load stats in
         statsFile = open(os.path.join(self.defaultOutputDirectory, self.statsFileName), "r")
         stats = json.load(statsFile)
         statsFile.close()
-
-        self.currentResults = OrderedDict()
 
         #create dict and loop through original images
         for origImageFileName in stats:
@@ -333,12 +351,11 @@ class ImageOverview(QWidget):
                     currEntry[statsKey] = stats[origImageFileName][statsKey]
 
             self.currentResults[origImageFileName] = currEntry
-
-        self.GetSamples()
+        """
+            
+        self.GetSamples(self.defaultInputDirectory)
 
         self.AddSkeletonUI()
-
-        self.GeneratedResults.emit(self.currentResults)
 
     def CreateInitializationSettings(self) -> None:
         self.defaultInputDirectory = self.defaultInputDirectory.replace("/", "\\")
@@ -353,12 +370,19 @@ class ImageOverview(QWidget):
         json.dump(initializationSettings, initFile, indent=4)
         initFile.close()
 
-    def GetSamples(self) -> None:
-        for key in self.currentResults:
-            if self.currentResults[key][sampleKey] not in self.sampleToFiles:
-                self.sampleToFiles[self.currentResults[key][sampleKey]] = [key]
+    def GetSamples(self, inputDirectory:str) -> None:
+        fileNames = os.listdir(inputDirectory)
+        
+        for fileName in fileNames:
+            fileNameParts = os.path.splitext(fileName)[0].split("_")
+            del fileNameParts[-1]
+
+            sampleName = "_".join(fileNameParts)
+
+            if sampleName not in self.sampleToFiles:
+                self.sampleToFiles[sampleName] = [fileName]
             else:
-                self.sampleToFiles[self.currentResults[key][sampleKey]].append(key)
+                self.sampleToFiles[sampleName].append(fileName)
 
     def LoadInitializationSettings(self):
         initFile = open(self.initSettingsFilePath, "r")

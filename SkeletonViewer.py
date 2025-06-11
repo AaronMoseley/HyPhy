@@ -3,6 +3,9 @@ from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtCore import Qt, Signal
 
 from collections import OrderedDict
+from PIL import Image
+import os
+import numpy as np
 
 from HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionTypeKey, imageTypeKey, clusterTypeKey, lineTypeKey
 from InteractiveSkeletonPixmap import InteractiveSkeletonPixmap
@@ -78,7 +81,7 @@ class SkeletonViewer(QWidget):
     def BackToOverview(self) -> None:
         self.BackButtonPressed.emit()
 
-    def SetCurrentResults(self, result:OrderedDict) -> None:
+    def SetCurrentImage(self, result:dict) -> None:
         self.currentResults = result
 
     def UpdateLengthLabels(self, lineLength:float, clumpLength:float, lineIndex:int, clumpIndex:int) -> None:
@@ -108,19 +111,28 @@ class SkeletonViewer(QWidget):
                 subtitle = f"(per {statFunctionMap[statsLabelKey][functionTypeKey]})"
 
                 if statFunctionMap[statsLabelKey][functionTypeKey] == clusterTypeKey:
-                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[self.currentImageName][statsLabelKey][clumpIndex]}")
+                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[statsLabelKey][clumpIndex]}")
                 elif statFunctionMap[statsLabelKey][functionTypeKey] == lineTypeKey:
-                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[self.currentImageName][statsLabelKey][lineIndex]}")
+                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[statsLabelKey][lineIndex]}")
 
     def SetImage(self, imageName:str) -> None:
         self.currentImageName = imageName
 
         self.imageTitleLabel.setText(self.imageTitleLabelPrefix + imageName)
 
-        originalImagePixmap = ArrayToPixmap(self.currentResults[imageName][originalImageKey], self.imageResolution, False)
-        self.skeletonLabel.SetLines(self.currentResults[imageName][vectorKey][pointsKey], 
-                                    self.currentResults[imageName][vectorKey][linesKey], 
-                                    self.currentResults[imageName][vectorKey][clusterKey])
+        originalImage = Image.open(self.currentResults[originalImageKey])
+        originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
+
+        maxValue = np.max(originalImageArray)
+        minValue = np.min(originalImageArray)
+        originalImageArray -= minValue
+        maxValue -= minValue
+        originalImageArray /= maxValue
+
+        originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageResolution, False)
+        self.skeletonLabel.SetLines(self.currentResults[vectorKey][pointsKey], 
+                                    self.currentResults[vectorKey][linesKey], 
+                                    self.currentResults[vectorKey][clusterKey])
 
         self.origImageLabel.setPixmap(originalImagePixmap)
 
@@ -130,6 +142,6 @@ class SkeletonViewer(QWidget):
             subtitle = f"(per {statFunctionMap[statsLabelKey][functionTypeKey]})"
 
             if statFunctionMap[statsLabelKey][functionTypeKey] == imageTypeKey:
-                self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[imageName][statsLabelKey]}")
+                self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[statsLabelKey]}")
             else:
                 self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: N/A")
