@@ -300,58 +300,6 @@ class ImageOverview(QWidget):
         
         if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)):
             return
-
-        """
-        #load stats in
-        statsFile = open(os.path.join(self.defaultOutputDirectory, self.statsFileName), "r")
-        stats = json.load(statsFile)
-        statsFile.close()
-
-        #create dict and loop through original images
-        for origImageFileName in stats:
-            if not os.path.exists(os.path.join(self.defaultInputDirectory, origImageFileName)):
-                continue
-            
-            if origImageFileName not in stats:
-                continue
-
-            origFileBaseName, origFileExtension = os.path.splitext(origImageFileName)
-
-            skeletonFileName = f"{origFileBaseName}_skeleton{origFileExtension}"
-
-            if not os.path.exists(os.path.join(self.defaultOutputDirectory, skeletonFileName)):
-                continue
-
-            currEntry = {}
-
-            #load orig image, normalize it to 0-1
-            origImage = Image.open(os.path.join(self.defaultInputDirectory, origImageFileName))
-            origImageArray = np.asarray(origImage, dtype=np.float64)
-            origImageArray = NormalizeImageArray(origImageArray)
-
-            currEntry[originalImageKey] = origImageArray
-
-            #load skeleton, normalize it to 0-1
-            skeletonImage = Image.open(os.path.join(self.defaultOutputDirectory, skeletonFileName))
-            skeletonArray = np.asarray(skeletonImage, dtype=np.float64)
-            skeletonArray = NormalizeImageArray(skeletonArray)
-
-            currEntry[skeletonKey] = skeletonArray
-
-            currEntry[vectorKey] = stats[origImageFileName][vectorKey]
-
-            currEntry[sampleKey] = stats[origImageFileName][sampleKey]
-            currEntry[timestampKey] = stats[origImageFileName][timestampKey]
-
-            #add in stats
-            for statsKey in statFunctionMap:
-                if statsKey not in stats[origImageFileName]:
-                    currEntry[statsKey] = None
-                else:
-                    currEntry[statsKey] = stats[origImageFileName][statsKey]
-
-            self.currentResults[origImageFileName] = currEntry
-        """
             
         self.GetSamples(self.defaultInputDirectory)
 
