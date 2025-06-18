@@ -6,21 +6,12 @@ from skimage.morphology import skeletonize
 from skimage.measure import regionprops
 from scipy.ndimage import gaussian_filter, uniform_filter
 from skimage.filters import threshold_otsu
-from collections import OrderedDict
 from skimage import morphology
 from skimage import feature
-from skimage.segmentation import chan_vese
-
-from skimage.restoration import (
-    denoise_tv_chambolle,
-    denoise_bilateral,
-    denoise_wavelet,
-    estimate_sigma,
-)
 
 from VectorizeSkeleton import VectorizeSkeleton
 
-from HelperFunctions import skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionKey
+from HelperFunctions import skeletonKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionKey
 
 def top_hat(image:np.ndarray) -> np.ndarray:
     footprint = morphology.disk(1)
