@@ -4,10 +4,19 @@ from PIL import Image
 from scipy.ndimage import label
 from skimage.morphology import skeletonize
 from skimage.measure import regionprops
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, uniform_filter
 from skimage.filters import threshold_otsu
 from collections import OrderedDict
 from skimage import morphology
+from skimage import feature
+from skimage.segmentation import chan_vese
+
+from skimage.restoration import (
+    denoise_tv_chambolle,
+    denoise_bilateral,
+    denoise_wavelet,
+    estimate_sigma,
+)
 
 from VectorizeSkeleton import VectorizeSkeleton
 
@@ -143,6 +152,165 @@ def smooth_binary_array(binary_array, sigma=1.0):
 
     return smoothed_binary
 
+
+def adjust_contrast(image: np.ndarray, contrast: float) -> np.ndarray:
+    """
+    Adjust the contrast of a normalized 2D grayscale image.
+    
+    Parameters:
+        image (np.ndarray): 2D numpy array with values in [0, 1].
+        contrast (float): Contrast adjustment factor.
+                          1.0 = no change,
+                          >1.0 = increase contrast,
+                          <1.0 = decrease contrast.
+                          
+    Returns:
+        np.ndarray: Contrast-adjusted image, still in [0, 1].
+    """
+    if not (0 <= image.min() and image.max() <= 1):
+        raise ValueError("Input image must be normalized to range [0, 1].")
+    
+    # Adjust contrast: scale pixel values away from or toward the midpoint (0.5)
+    adjusted = 0.5 + contrast * (image - 0.5)
+    
+    # Clip values to ensure they're still in [0, 1]
+    return np.clip(adjusted, 0, 1)
+
+def threshold_and_proximity(image, edgeDetection, maxThreshold, minThreshold, distance, ratioThreshold):
+    """
+    Returns a binary array where each element is 1 if:
+    - the corresponding element in array1 is less than the threshold, and
+    - there is at least one element equal to 1 in array2 within the specified distance.
+
+    Parameters:
+    - array1: 2D numpy array
+    - array2: 2D numpy array of the same shape as array1
+    - threshold: numeric value
+    - distance: int, neighborhood radius to consider
+
+    Returns:
+    - result: 2D numpy array of 0s and 1s
+    """
+
+    if image.shape != edgeDetection.shape:
+        raise ValueError("Input arrays must have the same shape.")
+
+
+    smoothedImage = uniform_filter(image, size=10, mode="constant")
+    condition1 = np.logical_and(image < smoothedImage * maxThreshold, image > smoothedImage * minThreshold)
+
+    # Condition 1: array1 < threshold
+    #condition1 = np.logical_and(image < maxThreshold, image > minThreshold)
+
+    size = 2 * distance + 1
+    edgeDetection = np.asarray(edgeDetection, dtype=np.float64)
+    local_ratio = uniform_filter(edgeDetection, size=size, mode='constant')
+
+    # Condition 2: ratio of 1s in neighborhood >= ratio_threshold
+    condition2 = local_ratio >= ratioThreshold
+
+    # Final result: element-wise AND of both conditions
+    result = np.logical_and(condition1, condition2).astype(np.float64)
+
+    return result
+
+def GenerateMatureHyphageSkeleton(directory:str, fileName:str, parameters:dict) -> dict:
+    if not fileName.endswith(".tif") and not fileName.endswith(".png"):
+        return None
+    
+    filePath = os.path.join(directory, fileName)
+    img = Image.open(filePath)
+
+    originalImageArray = np.asarray(img, dtype=np.float64)
+
+    imgArray = np.asarray(img, dtype=np.float64)
+
+    maxValue = np.max(imgArray)
+    minValue = np.min(imgArray)
+    imgArray -= minValue
+    maxValue -= minValue
+    imgArray /= maxValue
+
+    originalImageArray -= minValue
+    originalImageArray /= maxValue
+
+    thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], parameters["centerThreshold"], parameters["edgeThreshold"])
+
+    imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
+
+    imgArray = remove_small_white_islands(imgArray, parameters["minWhiteIslandSize"])
+    imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=parameters["noiseTolerance"])
+    imgArray = smooth_binary_array(imgArray, sigma=parameters["gaussianBlurSigma"])
+    imgArray = skeletonize(imgArray)
+
+    result = {}
+    result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
+
+    lines, points, clusters = VectorizeSkeleton(imgArray)
+
+    vectors = {
+        linesKey: lines,
+        pointsKey: points,
+        clusterKey: clusters
+    }
+
+    result[vectorKey] = vectors
+
+    for key in statFunctionMap:
+        result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
+        
+    print(f"Created mature hyphage skeleton for {fileName}")
+
+    return result
+
+def GenerateNetworkSkeleton(directory:str, fileName:str, parameters:dict) -> dict:
+    if not fileName.endswith(".tif") and not fileName.endswith(".png"):
+        return None
+    
+    filePath = os.path.join(directory, fileName)
+    img = Image.open(filePath)
+
+    originalImageArray = np.asarray(img, dtype=np.float64)
+
+    imgArray = np.asarray(img, dtype=np.float64)
+
+    maxValue = np.max(imgArray)
+    minValue = np.min(imgArray)
+    imgArray -= minValue
+    maxValue -= minValue
+    imgArray /= maxValue
+
+    originalImageArray -= minValue
+    originalImageArray /= maxValue
+
+    imgAdjustedContrast = adjust_contrast(imgArray, 2.0)
+
+    imgArray = feature.canny(imgAdjustedContrast, sigma=2)
+    imgArray = threshold_and_proximity(imgAdjustedContrast, imgArray, 0.9, 0.05, 5, 0.1)
+    imgArray = smooth_binary_array(imgArray, sigma=parameters["gaussianBlurSigma"])
+    imgArray = remove_small_white_islands(imgArray, 50)
+    imgArray = skeletonize(imgArray)
+
+    result = {}
+    result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
+
+    lines, points, clusters = VectorizeSkeleton(imgArray)
+
+    vectors = {
+        linesKey: lines,
+        pointsKey: points,
+        clusterKey: clusters
+    }
+
+    result[vectorKey] = vectors
+
+    for key in statFunctionMap:
+        result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
+        
+    print(f"Created network skeleton for {fileName}")
+
+    return result
+
 def generate_skeletonized_images(directory:str, fileName:str, centerThreshold:float, edgeThreshold:float, minWhiteIslandSize:int, noiseTolerance:float, gaussianBlurSigma:float) -> dict:
     if not fileName.endswith(".tif") and not fileName.endswith(".png"):
         return None
@@ -163,6 +331,7 @@ def generate_skeletonized_images(directory:str, fileName:str, centerThreshold:fl
     originalImageArray -= minValue
     originalImageArray /= maxValue
 
+    """
     thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], centerThreshold, edgeThreshold)
 
     imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
@@ -171,11 +340,25 @@ def generate_skeletonized_images(directory:str, fileName:str, centerThreshold:fl
     imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=noiseTolerance)
     imgArray = smooth_binary_array(imgArray, sigma=gaussianBlurSigma)
     imgArray = skeletonize(imgArray)
+    """
+
+    imgAdjustedContrast = adjust_contrast(imgArray, 2.0)
+
+    #imgArray = 1.0 - imgArray
+
+    imgArray = feature.canny(imgAdjustedContrast, sigma=2)
+    imgArray = threshold_and_proximity(imgAdjustedContrast, imgArray, 0.9, 0.05, 5, 0.1)
+    imgArray = smooth_binary_array(imgArray, sigma=gaussianBlurSigma)
+    imgArray = remove_small_white_islands(imgArray, 50)
+    imgArray = skeletonize(imgArray)
+    #imgArray = np.asarray(imgArray < 0.1, dtype=np.float64)
+    #imgArray = chan_vese(imgArray, mu=0.01, lambda1=1, lambda2=1, tol=1e-3, max_num_iter=200, dt=0.5, init_level_set="checkerboard")
 
     result = {}
     result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
     result[originalImageKey] = np.asarray(originalImageArray, dtype=np.float64)
 
+    """
     lines, points, clusters = VectorizeSkeleton(imgArray)
 
     vectors = {
@@ -185,10 +368,13 @@ def generate_skeletonized_images(directory:str, fileName:str, centerThreshold:fl
     }
 
     result[vectorKey] = vectors
+    """
 
+    """
     for key in statFunctionMap:
         result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
-
+    """
+        
     print(f"Created skeleton for {fileName}")
 
     return result

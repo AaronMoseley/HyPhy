@@ -25,8 +25,8 @@ class MainApplication(QMainWindow):
         self.primaryLayout.addWidget(self.skeletonViewer)
         self.primaryLayout.setCurrentWidget(self.overview)
 
-    def GoIntoViewer(self, imageName:str) -> None:
-        self.skeletonViewer.SetImage(imageName)
+    def GoIntoViewer(self, imageName:str, currSkeletonKey:str) -> None:
+        self.skeletonViewer.SetImage(imageName, currSkeletonKey)
         self.primaryLayout.setCurrentWidget(self.skeletonViewer)
 
     def BackToOverview(self) -> None:

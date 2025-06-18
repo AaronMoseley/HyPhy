@@ -12,7 +12,7 @@ import json
 
 from PIL import Image
 
-from CreateSkeleton import generate_skeletonized_images
+from CreateSkeleton import GenerateMatureHyphageSkeleton, GenerateNetworkSkeleton
 from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey, timestampKey, sampleKey
 from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
@@ -20,11 +20,103 @@ from ProgressBar import ProgressBarPopup
 import time
 
 class ImageOverview(QWidget):
-    ClickedOnSkeleton = Signal(str)
+    ClickedOnSkeleton = Signal(str, str)
     LoadedNewImage = Signal(dict)
 
     def __init__(self) -> None:
         super().__init__()
+
+        self.skeletonMap = {
+            "matureHyphage": {
+                "name": "Mature Hyphage",
+                "function": GenerateMatureHyphageSkeleton,
+                "parameters": {
+                    "centerThreshold": {
+                        "name": "Center Threshold",
+                        "decimals": 3,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "default": 0.515
+                    },
+                    "edgeThreshold": {
+                        "name": "Edge Threshold",
+                        "decimals": 3,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "default": 0.12
+                    },
+                    "minWhiteIslandSize": {
+                        "name": "Minimum Size for White Areas (pixels)",
+                        "decimals": 0,
+                        "min": 100,
+                        "max": 1500,
+                        "default": 800
+                    },
+                    "noiseTolerance": {
+                        "name": "Noisy Island Tolerance",
+                        "decimals": 2,
+                        "min": 0.0,
+                        "max": 4.0,
+                        "default": 0.15
+                    },
+                    "gaussianBlurSigma": {
+                        "name": "Gaussian Blur Sigma",
+                        "decimals": 2,
+                        "min": 0.0,
+                        "max": 4.0,
+                        "default": 1.2
+                    }
+                }
+            },
+            "network": {
+                "name": "Fungal Network",
+                "function": GenerateNetworkSkeleton,
+                "parameters": {
+                    "contrastAdjustment": {
+                        "name": "Contrast Adjustment",
+                        "decimals": 2,
+                        "min": 1.0,
+                        "max": 4.0,
+                        "default": 2.0
+                    },
+                    "minThreshold": {
+                        "name": "Minimum Bound",
+                        "decimals": 3,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "default": 0.05
+                    },
+                    "maxThreshold": {
+                        "name": "Maximum Bound",
+                        "decimals": 3,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "default": 0.9
+                    },
+                    "edgeNeighborRatio": {
+                        "name": "Minimum Edge Neighbor Ratio",
+                        "decimals": 3,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "default": 0.1
+                    },
+                    "gaussianBlurSigma": {
+                        "name": "Gaussian Blur Sigma",
+                        "decimals": 2,
+                        "min": 0.0,
+                        "max": 4.0,
+                        "default": 1.2
+                    },
+                    "minWhiteIslandSize": {
+                        "name": "Minimum Size for White Areas (pixels)",
+                        "decimals": 0,
+                        "min": 0,
+                        "max": 1000,
+                        "default": 50
+                    }
+                }
+            }
+        }
 
         self.currentIndex = 0
 
@@ -106,20 +198,24 @@ class ImageOverview(QWidget):
         layout.addWidget(self.generateSampleSkeletonsButton)
         self.generateSampleSkeletonsButton.setEnabled(False)
 
-        self.centerThresholdEdit = SliderLineEditCombo("Center Threshold", defaultVal=0.515, min_val=0.0, max_val=1.0, decimals=3)
-        layout.addLayout(self.centerThresholdEdit)
+        self.sliderMap = {}
 
-        self.edgeThresholdEdit = SliderLineEditCombo("Edge Threshold", defaultVal=0.12, min_val=0.0, max_val=1.0, decimals=3)
-        layout.addLayout(self.edgeThresholdEdit)
+        for currSkeletonKey in self.skeletonMap:
+            layout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']} Parameters:"))
+            
+            currentResult = {}
 
-        self.minIslandEdit = SliderLineEditCombo("Minimum Size for White Areas (pixels)", defaultVal=800.0, min_val=100, max_val=1500, decimals=0)
-        layout.addLayout(self.minIslandEdit)
+            for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
+                parameterInfo = self.skeletonMap[currSkeletonKey]["parameters"][parameterKey]
 
-        self.noiseToleranceEdit = SliderLineEditCombo("Noisy Island Tolerance", defaultVal=0.15, min_val=0.0, max_val=4.0)
-        layout.addLayout(self.noiseToleranceEdit)
+                currentSlider = SliderLineEditCombo(parameterInfo["name"], defaultVal=parameterInfo["default"], 
+                                                    min_val=parameterInfo["min"], max_val=parameterInfo["max"], decimals=parameterInfo["decimals"])
+                
+                layout.addLayout(currentSlider)
 
-        self.blurSigmaEdit = SliderLineEditCombo("Gaussian Blur Sigma", defaultVal=1.2, min_val=0.0, max_val=4.0)
-        layout.addLayout(self.blurSigmaEdit)
+                currentResult[parameterKey] = currentSlider
+
+            self.sliderMap[currSkeletonKey] = currentResult
 
     def ReadDirectories(self) -> None:
         inputDir = self.inputDirLineEdit.text()
@@ -136,44 +232,45 @@ class ImageOverview(QWidget):
             os.makedirs(os.path.join(self.defaultOutputDirectory, "Calculations"))
 
     def CreateSkeleton(self, fileName:str, sample:str) -> None:
-        #get result from skeleton creator
-        result = generate_skeletonized_images(self.defaultInputDirectory, fileName,
-                                                self.centerThresholdEdit.value(),
-                                                self.edgeThresholdEdit.value(),
-                                                int(self.minIslandEdit.value()),
-                                                self.noiseToleranceEdit.value(),
-                                                self.blurSigmaEdit.value())
+        jsonResult = {}
+        
+        jsonResult[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
 
         #save skeleton image file
         baseFileName, extension = os.path.splitext(fileName)
-
-        newBaseFileName = baseFileName + "_skeleton"
-        newFileName = newBaseFileName + extension
-
-        result[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
-
-        imgArray = result[skeletonKey]
-        img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
-        img = img.convert("RGB")
-        img.save(os.path.join(self.defaultOutputDirectory, newFileName))
-
+        
         #save JSON file for image
         fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
         timestamp = int(fileNameSplit[-1])
 
-        result[timestampKey] = timestamp
-        result[sampleKey] = sample
+        jsonResult[timestampKey] = timestamp
+        jsonResult[sampleKey] = sample
+        
+        #get result from skeleton creator
+        for currSkeletonKey in self.skeletonMap:
+            #create parameters
+            parameters = {}
+            for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
+                parameters[parameterKey] = self.sliderMap[currSkeletonKey][parameterKey].value()
 
-        jsonElement = {}
-        for key in result:
-            jsonElement[key] = result[key]
+            skeletonResult = self.skeletonMap[currSkeletonKey]["function"](self.defaultInputDirectory, fileName,
+                                                    parameters)
 
-        jsonElement[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
-        jsonElement[skeletonKey] = os.path.join(self.defaultOutputDirectory, newFileName)
+            newBaseFileName = baseFileName + "_" + currSkeletonKey
+            newFileName = newBaseFileName + extension
+
+            imgArray = skeletonResult[skeletonKey]
+            img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
+            img = img.convert("RGB")
+            img.save(os.path.join(self.defaultOutputDirectory, newFileName))
+
+            skeletonResult[skeletonKey] = os.path.join(self.defaultOutputDirectory, newFileName)
+
+            jsonResult[currSkeletonKey] = skeletonResult
 
         jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
         jsonFile = open(jsonFilePath, "w")
-        json.dump(jsonElement, jsonFile, indent=4)
+        json.dump(jsonResult, jsonFile, indent=4)
         jsonFile.close()
 
     def GenerateSingleSkeleton(self) -> None:
@@ -260,31 +357,24 @@ class ImageOverview(QWidget):
         middleSkeletonLayout.addLayout(imageLayout)
         
         self.originalImageLabel = ClickableLabel()
-        self.originalImageLabel.clicked.connect(self.GoIntoSkeletonView)
-        self.skeletonLabel = ClickableLabel()
-        self.skeletonLabel.clicked.connect(self.GoIntoSkeletonView)
-
         imageLayout.addWidget(self.originalImageLabel)
-        imageLayout.addWidget(self.skeletonLabel)
 
         self.originalImageLabel.setPixmap(QPixmap(256, 256))
-        self.skeletonLabel.setPixmap(QPixmap(256, 256))
+
+        self.skeletonLabels = {}
+
+        for currSkeletonKey in self.skeletonMap:
+            imageLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
+            
+            skeletonLabel = ClickableLabel()
+            skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
+            self.skeletonLabels[currSkeletonKey] = skeletonLabel
+
+            imageLayout.addWidget(skeletonLabel)
+            skeletonLabel.setPixmap(QPixmap(256, 256))
 
         statsLayout = QVBoxLayout()
         middleSkeletonLayout.addLayout(statsLayout)
-
-        self.calculationStatLabels = OrderedDict()
-
-        for key in statFunctionMap:
-            if statFunctionMap[key][functionTypeKey] != imageTypeKey:
-                continue
-
-            title = camel_case_to_capitalized(key)
-            newLabel = QLabel(f"{title}: ")
-            self.calculationStatLabels[key] = newLabel
-            newLabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-            statsLayout.addWidget(newLabel)
 
         scrollButtonLayout = QHBoxLayout()
         skeletonLayout.addLayout(scrollButtonLayout)
@@ -313,8 +403,8 @@ class ImageOverview(QWidget):
 
         self.LoadImageIntoUI(0)
 
-    def GoIntoSkeletonView(self) -> None:
-        self.ClickedOnSkeleton.emit(self.currentFileList[self.currentIndex])
+    def GoIntoSkeletonView(self, currSkeletonKey:str) -> None:
+        self.ClickedOnSkeleton.emit(self.currentFileList[self.currentIndex], currSkeletonKey)
 
     def LoadImageIntoUI(self, index:int) -> None:
         self.currentIndex = index
@@ -341,15 +431,13 @@ class ImageOverview(QWidget):
         originalImageArray /= maxValue
 
         originalImagePixmap = ArrayToPixmap(originalImageArray, 256, False)
-        skeletonPixmap = draw_lines_on_pixmap(calculations[vectorKey][pointsKey], calculations[vectorKey][linesKey], 256)
 
         self.originalImageLabel.setPixmap(originalImagePixmap)
-        self.skeletonLabel.setPixmap(skeletonPixmap)
 
-        for statsLabelKey in self.calculationStatLabels:
-            title = camel_case_to_capitalized(statsLabelKey)
+        for currSkeletonKey in self.skeletonLabels:
+            skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], 256)
 
-            self.calculationStatLabels[statsLabelKey].setText(f"{title}: {calculations[statsLabelKey]}")
+            self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
 
         self.LoadedNewImage.emit(calculations)
 
