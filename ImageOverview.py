@@ -111,12 +111,18 @@ class ImageOverview(QWidget):
 
         self.skeletonLayouts = {}
 
-        for currSkeletonKey in self.skeletonMap:
-            currLayout = QVBoxLayout()
-            layout.addLayout(currLayout)
-            self.skeletonLayouts[currSkeletonKey] = currLayout
+        self.mainImageLayout = QVBoxLayout()
+        layout.addLayout(self.mainImageLayout)
 
-            currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']} Parameters:"))
+        for currSkeletonKey in self.skeletonMap:
+            currSkeletonLayout = QHBoxLayout()
+            currLayout = QVBoxLayout()
+            currSkeletonLayout.addLayout(currLayout)
+            #layout.addLayout(currLayout)
+            layout.addLayout(currSkeletonLayout)
+            self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
+
+            currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
             
             currentResult = {}
 
@@ -262,52 +268,30 @@ class ImageOverview(QWidget):
         self.generateIndividualSkeletonButton.setEnabled(True)
         self.generateSampleSkeletonsButton.setEnabled(True)
 
-        skeletonLayout = QVBoxLayout()
-        self.mainLayout.addLayout(skeletonLayout)
+        mainImageAndInfoLayout = QHBoxLayout()
+        self.mainImageLayout.addLayout(mainImageAndInfoLayout)
+
+        infoLayout = QVBoxLayout()
+        mainImageAndInfoLayout.addLayout(infoLayout)
 
         self.sampleDropdown = QComboBox()
         self.sampleDropdown.addItems(list(self.sampleToFiles.keys()))
         self.sampleDropdown.currentTextChanged.connect(self.LoadNewSample)
         self.sampleDropdown.setCurrentIndex(0)
-        skeletonLayout.addWidget(self.sampleDropdown)
+        infoLayout.addWidget(self.sampleDropdown)
 
         self.timestampLabel = QLabel("Timestamp: N/A")
         self.timestampLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        skeletonLayout.addWidget(self.timestampLabel)
+        infoLayout.addWidget(self.timestampLabel)
 
-        middleSkeletonLayout = QHBoxLayout()
-        skeletonLayout.addLayout(middleSkeletonLayout)
-
-        imageLayout = QVBoxLayout()
-        middleSkeletonLayout.addLayout(imageLayout)
-        
         self.originalImageLabel = ClickableLabel()
-        imageLayout.addWidget(self.originalImageLabel)
+        self.originalImageLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        mainImageAndInfoLayout.addWidget(self.originalImageLabel)
 
         self.originalImageLabel.setPixmap(QPixmap(256, 256))
 
-        self.skeletonLabels = {}
-
-        for currSkeletonKey in self.skeletonMap:
-            imageLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
-            
-            skeletonLabel = ClickableLabel()
-            skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
-            self.skeletonLabels[currSkeletonKey] = skeletonLabel
-
-            imageLayout.addWidget(skeletonLabel)
-            skeletonLabel.setPixmap(QPixmap(256, 256))
-
-            previewButton = QPushButton("Preview Steps")
-            imageLayout.addWidget(previewButton)
-
-            previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
-
-        statsLayout = QVBoxLayout()
-        middleSkeletonLayout.addLayout(statsLayout)
-
         scrollButtonLayout = QHBoxLayout()
-        skeletonLayout.addLayout(scrollButtonLayout)
+        self.mainImageLayout.addLayout(scrollButtonLayout)
         self.leftButton = QPushButton("🠨")
         font = self.leftButton.font()
         font.setPointSize(25)
@@ -323,6 +307,25 @@ class ImageOverview(QWidget):
         self.rightButton.setFont(font)
         scrollButtonLayout.addWidget(self.rightButton)
         self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
+
+        self.skeletonLabels = {}
+
+        for currSkeletonKey in self.skeletonMap:
+            skeletonLabel = ClickableLabel()
+            skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
+            self.skeletonLabels[currSkeletonKey] = skeletonLabel
+
+            currLayout = QVBoxLayout()
+            self.skeletonLayouts[currSkeletonKey].addLayout(currLayout)
+
+            currLayout.addWidget(skeletonLabel)
+
+            skeletonLabel.setPixmap(QPixmap(256, 256))
+
+            previewButton = QPushButton("Preview Steps")
+            currLayout.addWidget(previewButton)
+
+            previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
 
         self.LoadNewSample(list(self.sampleToFiles.keys())[0])
 
