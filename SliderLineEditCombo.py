@@ -1,8 +1,10 @@
 from PySide6.QtWidgets import QHBoxLayout, QSlider, QLineEdit, QLabel
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDoubleValidator
 
 class SliderLineEditCombo(QHBoxLayout):
+    ValueChanged = Signal()
+    
     def __init__(self, name:str, defaultVal:float=None, min_val=0.0, max_val=100.0, decimals=2, parent=None):
         super().__init__(parent)
 
@@ -41,6 +43,8 @@ class SliderLineEditCombo(QHBoxLayout):
         float_val = value / self.scale
         self.line_edit.setText(f"{float_val:.{self.decimals}f}")
 
+        self.ValueChanged.emit()
+
     def _update_slider(self):
         text = self.line_edit.text()
         try:
@@ -50,6 +54,9 @@ class SliderLineEditCombo(QHBoxLayout):
                 self.slider.setValue(slider_val)
         except ValueError:
             pass  # Ignore invalid input
+
+    def UpdateValue(self, newValue:float) -> None:
+        self.slider.setValue(newValue * self.scale)
 
     def value(self) -> float:
         """Returns the current value as a float."""

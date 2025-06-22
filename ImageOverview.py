@@ -5,118 +5,27 @@ from PySide6.QtCore import Qt, Signal
 import numpy as np
 
 from functools import partial
-from collections import OrderedDict
 
 import os
 import json
 
 from PIL import Image
 
-from CreateSkeleton import GenerateMatureHyphageSkeleton, GenerateNetworkSkeleton
-from HelperFunctions import camel_case_to_capitalized, draw_lines_on_pixmap, ArrayToPixmap, NormalizeImageArray, skeletonKey, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, functionTypeKey, imageTypeKey, timestampKey, sampleKey
+from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey
 from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
-import time
 
 class ImageOverview(QWidget):
     ClickedOnSkeleton = Signal(str, str)
     LoadedNewImage = Signal(dict)
+    ParametersChanged = Signal(dict, str)
+    TriggerPreview = Signal(str, str)
 
-    def __init__(self) -> None:
+    def __init__(self, skeletonMap:dict) -> None:
         super().__init__()
 
-        self.skeletonMap = {
-            "matureHyphage": {
-                "name": "Mature Hyphage",
-                "function": GenerateMatureHyphageSkeleton,
-                "parameters": {
-                    "centerThreshold": {
-                        "name": "Center Threshold",
-                        "decimals": 3,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "default": 0.515
-                    },
-                    "edgeThreshold": {
-                        "name": "Edge Threshold",
-                        "decimals": 3,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "default": 0.12
-                    },
-                    "minWhiteIslandSize": {
-                        "name": "Minimum Size for White Areas (pixels)",
-                        "decimals": 0,
-                        "min": 100,
-                        "max": 1500,
-                        "default": 800
-                    },
-                    "noiseTolerance": {
-                        "name": "Noisy Island Tolerance",
-                        "decimals": 2,
-                        "min": 0.0,
-                        "max": 4.0,
-                        "default": 0.15
-                    },
-                    "gaussianBlurSigma": {
-                        "name": "Gaussian Blur Sigma",
-                        "decimals": 2,
-                        "min": 0.0,
-                        "max": 4.0,
-                        "default": 1.2
-                    }
-                }
-            },
-            "network": {
-                "name": "Fungal Network",
-                "function": GenerateNetworkSkeleton,
-                "parameters": {
-                    "contrastAdjustment": {
-                        "name": "Contrast Adjustment",
-                        "decimals": 2,
-                        "min": 1.0,
-                        "max": 4.0,
-                        "default": 2.0
-                    },
-                    "minThreshold": {
-                        "name": "Minimum Bound",
-                        "decimals": 3,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "default": 0.05
-                    },
-                    "maxThreshold": {
-                        "name": "Maximum Bound",
-                        "decimals": 3,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "default": 0.9
-                    },
-                    "edgeNeighborRatio": {
-                        "name": "Minimum Edge Neighbor Ratio",
-                        "decimals": 3,
-                        "min": 0.0,
-                        "max": 1.0,
-                        "default": 0.1
-                    },
-                    "gaussianBlurSigma": {
-                        "name": "Gaussian Blur Sigma",
-                        "decimals": 2,
-                        "min": 0.0,
-                        "max": 4.0,
-                        "default": 1.2
-                    },
-                    "minWhiteIslandSize": {
-                        "name": "Minimum Size for White Areas (pixels)",
-                        "decimals": 0,
-                        "min": 0,
-                        "max": 1000,
-                        "default": 50
-                    }
-                }
-            }
-        }
+        self.skeletonMap = skeletonMap
 
         self.currentIndex = 0
 
@@ -200,8 +109,14 @@ class ImageOverview(QWidget):
 
         self.sliderMap = {}
 
+        self.skeletonLayouts = {}
+
         for currSkeletonKey in self.skeletonMap:
-            layout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']} Parameters:"))
+            currLayout = QVBoxLayout()
+            layout.addLayout(currLayout)
+            self.skeletonLayouts[currSkeletonKey] = currLayout
+
+            currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']} Parameters:"))
             
             currentResult = {}
 
@@ -211,11 +126,21 @@ class ImageOverview(QWidget):
                 currentSlider = SliderLineEditCombo(parameterInfo["name"], defaultVal=parameterInfo["default"], 
                                                     min_val=parameterInfo["min"], max_val=parameterInfo["max"], decimals=parameterInfo["decimals"])
                 
-                layout.addLayout(currentSlider)
+                currentSlider.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
+
+                currLayout.addLayout(currentSlider)
 
                 currentResult[parameterKey] = currentSlider
 
             self.sliderMap[currSkeletonKey] = currentResult
+
+    def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
+        self.ParametersChanged.emit(self.sliderMap, currSkeletonKey)
+
+    def LoadOtherParameters(self, values:dict) -> None:
+        for currSkeletonKey in self.sliderMap:
+            for parameterKey in self.sliderMap[currSkeletonKey]:
+                self.sliderMap[currSkeletonKey][parameterKey].UpdateValue(values[currSkeletonKey][parameterKey])
 
     def ReadDirectories(self) -> None:
         inputDir = self.inputDirLineEdit.text()
@@ -373,6 +298,11 @@ class ImageOverview(QWidget):
             imageLayout.addWidget(skeletonLabel)
             skeletonLabel.setPixmap(QPixmap(256, 256))
 
+            previewButton = QPushButton("Preview Steps")
+            imageLayout.addWidget(previewButton)
+
+            previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
+
         statsLayout = QVBoxLayout()
         middleSkeletonLayout.addLayout(statsLayout)
 
@@ -395,6 +325,13 @@ class ImageOverview(QWidget):
         self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
         self.LoadNewSample(list(self.sampleToFiles.keys())[0])
+
+    def LoadPreview(self, currSkeletonKey:str) -> None:
+        currImageName = self.currentFileList[self.currentIndex]
+
+        currImagePath = os.path.join(self.defaultInputDirectory, currImageName)
+
+        self.TriggerPreview.emit(currImagePath, currSkeletonKey)
 
     def LoadNewSample(self, value:str) -> None:
         self.currentFileList = self.sampleToFiles[value]
@@ -440,6 +377,11 @@ class ImageOverview(QWidget):
             self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
 
         self.LoadedNewImage.emit(calculations)
+
+    def SetParameterValues(self, values:dict) -> None:
+        for currSkeletonKey in values:
+            for parameterKey in values[currSkeletonKey]:
+                self.sliderMap[currSkeletonKey][parameterKey].UpdateValue(values[currSkeletonKey][parameterKey])
 
     def ChangeIndex(self, direction:int) -> None:
         if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
