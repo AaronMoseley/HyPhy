@@ -27,6 +27,8 @@ class ImageOverview(QWidget):
 
         self.skeletonMap = skeletonMap
 
+        self.imageSize = 256
+
         self.currentIndex = 0
 
         self.imageTitleLabelPrefix = "File Name: "
@@ -288,7 +290,7 @@ class ImageOverview(QWidget):
         self.originalImageLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mainImageAndInfoLayout.addWidget(self.originalImageLabel)
 
-        self.originalImageLabel.setPixmap(QPixmap(256, 256))
+        self.originalImageLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
 
         scrollButtonLayout = QHBoxLayout()
         self.mainImageLayout.addLayout(scrollButtonLayout)
@@ -320,7 +322,7 @@ class ImageOverview(QWidget):
 
             currLayout.addWidget(skeletonLabel)
 
-            skeletonLabel.setPixmap(QPixmap(256, 256))
+            skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
 
             previewButton = QPushButton("Preview Steps")
             currLayout.addWidget(previewButton)
@@ -370,12 +372,12 @@ class ImageOverview(QWidget):
         maxValue -= minValue
         originalImageArray /= maxValue
 
-        originalImagePixmap = ArrayToPixmap(originalImageArray, 256, False)
+        originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageSize, False)
 
         self.originalImageLabel.setPixmap(originalImagePixmap)
 
         for currSkeletonKey in self.skeletonLabels:
-            skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], 256)
+            skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
             self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
 
