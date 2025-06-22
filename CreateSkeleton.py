@@ -274,12 +274,12 @@ def GenerateNetworkSkeleton(directory:str, fileName:str, parameters:dict) -> dic
     originalImageArray -= minValue
     originalImageArray /= maxValue
 
-    imgAdjustedContrast = adjust_contrast(imgArray, 2.0)
+    imgAdjustedContrast = adjust_contrast(imgArray, parameters["contrastAdjustment"])
 
-    imgArray = feature.canny(imgAdjustedContrast, sigma=2)
-    imgArray = threshold_and_proximity(imgAdjustedContrast, imgArray, 0.9, 0.05, 5, 0.1)
+    imgArray = feature.canny(imgAdjustedContrast, sigma=parameters["gaussianBlurSigma"])
+    imgArray = threshold_and_proximity(imgAdjustedContrast, imgArray, parameters["maxThreshold"], parameters["minThreshold"], 5, parameters["edgeNeighborRatio"])
     imgArray = smooth_binary_array(imgArray, sigma=parameters["gaussianBlurSigma"])
-    imgArray = remove_small_white_islands(imgArray, 50)
+    imgArray = remove_small_white_islands(imgArray, parameters["minWhiteIslandSize"])
     imgArray = skeletonize(imgArray)
 
     result = {}
@@ -301,3 +301,37 @@ def GenerateNetworkSkeleton(directory:str, fileName:str, parameters:dict) -> dic
     print(f"Created network skeleton for {fileName}")
 
     return result
+
+def RadialThreshold(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], parameters["centerThreshold"], parameters["edgeThreshold"])
+
+    imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
+
+    return imgArray
+
+def CallRemoveSmallWhiteIslands(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    imgArray = remove_small_white_islands(imgArray, parameters["minWhiteIslandSize"])
+
+    return imgArray
+
+def CallRemoveStructurallyNoisyIslands(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=parameters["noiseTolerance"])
+    return imgArray
+
+def CallSmoothBinaryArray(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    imgArray = smooth_binary_array(imgArray, sigma=parameters["gaussianBlurSigma"])
+    return imgArray
+
+def CallSkeletonize(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    imgArray = skeletonize(imgArray)
+    return imgArray
+
+def CallAdjustContrast(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    imgAdjustedContrast = adjust_contrast(imgArray, parameters["contrastAdjustment"])
+    return imgAdjustedContrast
+
+def CallEdgeDetection(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
+    edges = feature.canny(imgArray, sigma=parameters["gaussianBlurSigma"])
+    
+    imgArray = threshold_and_proximity(imgArray, edges, parameters["maxThreshold"], parameters["minThreshold"], 5, parameters["edgeNeighborRatio"])
+    return imgArray

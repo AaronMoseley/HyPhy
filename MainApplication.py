@@ -5,7 +5,7 @@ from ImageOverview import ImageOverview
 from SkeletonViewer import SkeletonViewer
 from PreviewWindow import PreviewWindow
 
-from CreateSkeleton import GenerateMatureHyphageSkeleton, GenerateNetworkSkeleton
+from CreateSkeleton import GenerateMatureHyphageSkeleton, GenerateNetworkSkeleton, RadialThreshold, CallRemoveSmallWhiteIslands, CallRemoveStructurallyNoisyIslands, CallSmoothBinaryArray, CallSkeletonize, CallAdjustContrast, CallEdgeDetection
 
 class MainApplication(QMainWindow):
     def __init__(self) -> None:
@@ -15,6 +15,33 @@ class MainApplication(QMainWindow):
             "matureHyphage": {
                 "name": "Mature Hyphage",
                 "function": GenerateMatureHyphageSkeleton,
+                "steps": [
+                    {
+                        "name": "Radial Threshold",
+                        "relatedParameters": ["centerThreshold", "edgeThreshold"],
+                        "function": RadialThreshold
+                    },
+                    {
+                        "name": "Remove Small White Islands",
+                        "relatedParameters": ["minWhiteIslandSize"],
+                        "function": CallRemoveSmallWhiteIslands
+                    },
+                    {
+                        "name": "Remove Noisy Islands",
+                        "relatedParameters": ["noiseTolerance"],
+                        "function": CallRemoveStructurallyNoisyIslands
+                    },
+                    {
+                        "name": "Smooth Image",
+                        "relatedParameters": ["gaussianBlurSigma"],
+                        "function": CallSmoothBinaryArray
+                    },
+                    {
+                        "name": "Skeletonize",
+                        "relatedParameters": [],
+                        "function": CallSkeletonize
+                    }
+                ],
                 "parameters": {
                     "centerThreshold": {
                         "name": "Center Threshold",
@@ -56,6 +83,33 @@ class MainApplication(QMainWindow):
             "network": {
                 "name": "Fungal Network",
                 "function": GenerateNetworkSkeleton,
+                "steps": [
+                    {
+                        "name": "Adjust Contrast",
+                        "relatedParameters": ["contrastAdjustment"],
+                        "function": CallAdjustContrast
+                    },
+                    {
+                        "name": "Edge Detection",
+                        "relatedParameters": ["gaussianBlurSigma", "maxThreshold", "minThreshold", "edgeNeighborRatio"],
+                        "function": CallEdgeDetection
+                    },
+                    {
+                        "name": "Smooth Image",
+                        "relatedParameters": ["gaussianBlurSigma"],
+                        "function": CallSmoothBinaryArray
+                    },
+                    {
+                        "name": "Remove Small White Islands",
+                        "relatedParameters": ["minWhiteIslandSize"],
+                        "function": CallRemoveSmallWhiteIslands
+                    },
+                    {
+                        "name": "Skeletonize",
+                        "relatedParameters": [],
+                        "function": CallSkeletonize
+                    }
+                ],
                 "parameters": {
                     "contrastAdjustment": {
                         "name": "Contrast Adjustment",

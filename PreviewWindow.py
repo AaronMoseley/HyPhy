@@ -25,8 +25,10 @@ class PreviewWindow(QWidget):
 
         self.skeletonMap = skeletonMap
 
+        self.imageResolution = 512
+
         self.currentStepIndex:int = 0
-        self.currentSkeletonLabel:str = ""
+        self.currentSkeletonKey:str = ""
 
         self.originalImageArray:np.ndarray = None
 
@@ -47,9 +49,6 @@ class PreviewWindow(QWidget):
         leftLayout.addWidget(backButton)
         backButton.clicked.connect(self.BackToOverview.emit)
 
-        self.imageNameLabel = QLabel("Image: N/A")
-        leftLayout.addWidget(self.imageNameLabel)
-
         self.parameterLayout = QVBoxLayout()
         leftLayout.addLayout(self.parameterLayout)
 
@@ -57,21 +56,30 @@ class PreviewWindow(QWidget):
         rightLayout = QVBoxLayout()
         mainLayout.addLayout(rightLayout)
 
-        self.stepNameLabel = QLabel("Current Step: N/A")
+        self.imageNameLabel = QLabel("")
+        rightLayout.addWidget(self.imageNameLabel)
+
+        self.skeletonNameLabel = QLabel("")
+
+        self.stepNameLabel = QLabel("")
         rightLayout.addWidget(self.stepNameLabel)
 
-        self.relevantParametersLabel = QLabel("Related Parameters:")
+        self.relevantParametersLabel = QLabel("")
         rightLayout.addWidget(self.relevantParametersLabel)
 
         self.mainImageLabel = QLabel()
-        mainImagePixmap = QPixmap(256, 256)
+        mainImagePixmap = QPixmap(self.imageResolution, self.imageResolution)
         self.mainImageLabel.setPixmap(mainImagePixmap)
         rightLayout.addWidget(self.mainImageLabel)
 
         self.skeletonLabel = QLabel()
-        skeletonPixmap = QPixmap(256, 256)
+        skeletonPixmap = QPixmap(self.imageResolution, self.imageResolution)
         self.skeletonLabel.setPixmap(skeletonPixmap)
         rightLayout.addWidget(self.skeletonLabel)
+
+        refreshButton = QPushButton("Refresh Step")
+        rightLayout.addWidget(refreshButton)
+        refreshButton.clicked.connect(self.LoadSkeletonStep)
 
         scrollButtonLayout = QHBoxLayout()
         rightLayout.addLayout(scrollButtonLayout)
@@ -80,7 +88,7 @@ class PreviewWindow(QWidget):
         font.setPointSize(25)
         self.leftButton.setFont(font)
         scrollButtonLayout.addWidget(self.leftButton)
-        #self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
+        self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
 
         self.leftButton.setEnabled(False)
 
@@ -89,21 +97,51 @@ class PreviewWindow(QWidget):
         font.setPointSize(25)
         self.rightButton.setFont(font)
         scrollButtonLayout.addWidget(self.rightButton)
-        #self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
+        self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
+
+    def ChangeIndex(self, direction:int) -> None:
+        newIndex = self.currentStepIndex + direction
+
+        if newIndex < 0:
+            newIndex = 0
+
+        if newIndex >= len(self.skeletonMap[self.currentSkeletonKey]["steps"]):
+            newIndex = len(self.skeletonMap[self.currentSkeletonKey]["steps"]) - 1
+
+        if newIndex == 0:
+            self.rightButton.setEnabled(True)
+            self.leftButton.setEnabled(False)
+        elif newIndex == len(self.skeletonMap[self.currentSkeletonKey]["steps"]) - 1:
+            self.rightButton.setEnabled(False)
+            self.leftButton.setEnabled(True)
+        else:
+            self.rightButton.setEnabled(True)
+            self.leftButton.setEnabled(True)
+
+        if newIndex != self.currentStepIndex:
+            self.currentStepIndex = newIndex
+            self.LoadSkeletonStep()
 
     def LoadNewImage(self, imagePath:str, currSkeletonKey:str, parameterValues:dict) -> None:
         #load image name and create all the sliders
         
+        imageName = os.path.splitext(os.path.basename(imagePath))[0]
+        self.imageNameLabel.setText(f"Image: {imageName}")
+
         self.currentStepIndex = 0
-        self.currentSkeletonLabel = currSkeletonKey
+        self.currentSkeletonKey = currSkeletonKey
+
+        self.skeletonNameLabel.setText(f"Skeleton Type: {self.skeletonMap[self.currentSkeletonKey]['name']}")
 
         self.AddParameterSliders(parameterValues)
 
         origImg = Image.open(imagePath)
-        origImgArray = np.asarray(origImg, dtype=np.float64)
-        origImgArray = NormalizeImageArray(origImgArray)
-        origImgPixmap = ArrayToPixmap(origImgArray, 256)
+        self.originalImageArray = np.asarray(origImg, dtype=np.float64)
+        self.originalImageArray = NormalizeImageArray(self.originalImageArray)
+        origImgPixmap = ArrayToPixmap(self.originalImageArray, self.imageResolution)
         self.mainImageLabel.setPixmap(origImgPixmap)
+
+        self.LoadSkeletonStep()
 
     def deleteItemsOfLayout(self, layout:(QVBoxLayout | QHBoxLayout)):
      if layout is not None:
@@ -116,7 +154,7 @@ class PreviewWindow(QWidget):
                 self.deleteItemsOfLayout(item.layout())
 
     def TriggerParameterChanged(self) -> None:
-        self.ParametersChanged.emit(self.sliders, self.currentSkeletonLabel)
+        self.ParametersChanged.emit(self.sliders, self.currentSkeletonKey)
 
     def AddParameterSliders(self, parameterValues:dict) -> None:
         self.deleteItemsOfLayout(self.parameterLayout)
@@ -125,12 +163,12 @@ class PreviewWindow(QWidget):
         currentEntry = {}
 
         #loop through each parameter
-        for parameterKey in parameterValues[self.currentSkeletonLabel]:
-            name = self.skeletonMap[self.currentSkeletonLabel]["parameters"][parameterKey]["name"]
-            defaultVal = parameterValues[self.currentSkeletonLabel][parameterKey]
-            minVal = self.skeletonMap[self.currentSkeletonLabel]["parameters"][parameterKey]["min"]
-            maxVal = self.skeletonMap[self.currentSkeletonLabel]["parameters"][parameterKey]["max"]
-            decimals = self.skeletonMap[self.currentSkeletonLabel]["parameters"][parameterKey]["decimals"]
+        for parameterKey in parameterValues[self.currentSkeletonKey]:
+            name = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["name"]
+            defaultVal = parameterValues[self.currentSkeletonKey][parameterKey]
+            minVal = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["min"]
+            maxVal = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["max"]
+            decimals = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["decimals"]
 
             slider = SliderLineEditCombo(name, defaultVal, minVal, maxVal, decimals)
             self.parameterLayout.addLayout(slider)
@@ -139,4 +177,33 @@ class PreviewWindow(QWidget):
 
             currentEntry[parameterKey] = slider
 
-        self.sliders[self.currentSkeletonLabel] = currentEntry
+        self.sliders[self.currentSkeletonKey] = currentEntry
+
+    def LoadSkeletonStep(self) -> None:
+        #set step name label
+        self.stepNameLabel.setText(f"Current Step: {self.skeletonMap[self.currentSkeletonKey]['steps'][self.currentStepIndex]['name']}")
+
+        #set related parameters label
+        relatedParametersText = "Related Parameters: "
+        relatedParameters = []
+        for parameterKey in self.skeletonMap[self.currentSkeletonKey]["steps"][self.currentStepIndex]["relatedParameters"]:
+            relatedParameters.append(self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["name"])
+
+        relatedParametersText += ", ".join(relatedParameters)
+
+        self.relevantParametersLabel.setText(relatedParametersText)
+
+        #create parameter dict
+        parameters = {}
+        for parameterKey in self.sliders[self.currentSkeletonKey]:
+            parameters[parameterKey] = self.sliders[self.currentSkeletonKey][parameterKey].value()
+
+        #calculate image
+        skeletonArray = self.originalImageArray
+        for step in self.skeletonMap[self.currentSkeletonKey]["steps"][:self.currentStepIndex + 1]:
+            skeletonArray = step["function"](skeletonArray, parameters)
+
+        skeletonArray = np.asarray(skeletonArray, dtype=np.float64)
+
+        skeletonPixmap = ArrayToPixmap(skeletonArray, self.imageResolution, maxPoolDownSample=True)
+        self.skeletonLabel.setPixmap(skeletonPixmap)

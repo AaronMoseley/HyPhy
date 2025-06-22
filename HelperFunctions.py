@@ -228,7 +228,7 @@ def draw_lines_on_pixmap(points:list[tuple[float, float]], lines:list[list[int]]
     painter.end()
     return pixmap
 
-def ArrayToPixmap(array:np.ndarray, dimension:int=249, correctRange:bool=False) -> QPixmap:
+def ArrayToPixmap(array:np.ndarray, dimension:int=249, correctRange:bool=False, maxPoolDownSample:bool=False) -> QPixmap:
     arrayCopy = np.copy(array)
     
     if not correctRange:
@@ -237,7 +237,10 @@ def ArrayToPixmap(array:np.ndarray, dimension:int=249, correctRange:bool=False) 
     arrayCopy = np.asarray(arrayCopy, dtype=np.uint8)
 
     # Resize using OpenCV
-    resized_gray = cv2.resize(arrayCopy, (dimension, dimension), interpolation=cv2.INTER_CUBIC)
+    if not maxPoolDownSample:
+        resized_gray = cv2.resize(arrayCopy, (dimension, dimension), interpolation=cv2.INTER_CUBIC)
+    else:
+        resized_gray = max_pooling_downsample(arrayCopy, (dimension, dimension))
 
     # Convert to RGB by stacking channels
     rgb_array = cv2.cvtColor(resized_gray, cv2.COLOR_GRAY2RGB)
@@ -248,6 +251,39 @@ def ArrayToPixmap(array:np.ndarray, dimension:int=249, correctRange:bool=False) 
     qImage = qImage.copy()
     newPixmap = QPixmap.fromImage(qImage)
     return newPixmap
+
+def max_pooling_downsample(image: np.ndarray, output_shape: tuple) -> np.ndarray:
+    """
+    Downsamples a 2D grayscale image using max pooling, even when input
+    dimensions are not divisible by the output dimensions.
+
+    Parameters:
+    - image (np.ndarray): 2D array of dtype np.uint8, shape (H, W)
+    - output_shape (tuple): Target shape (new_H, new_W)
+
+    Returns:
+    - np.ndarray: Downsampled 2D array of shape output_shape, dtype np.uint8
+    """
+    input_h, input_w = image.shape
+    output_h, output_w = output_shape
+
+    pooled = np.zeros((output_h, output_w), dtype=np.uint8)
+
+    for i in range(output_h):
+        # Compute start and end row indices for pooling window
+        start_i = int(i * input_h / output_h)
+        end_i = int((i + 1) * input_h / output_h)
+
+        for j in range(output_w):
+            # Compute start and end column indices for pooling window
+            start_j = int(j * input_w / output_w)
+            end_j = int((j + 1) * input_w / output_w)
+
+            # Extract pooling window and apply max
+            window = image[start_i:end_i, start_j:end_j]
+            pooled[i, j] = np.max(window)
+
+    return pooled
 
 def NormalizeImageArray(array:np.ndarray) -> np.ndarray:
     arrayCopy = np.copy(array)
