@@ -16,6 +16,8 @@ from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
 
+from CreateSkeleton import stepFunctionMap
+
 class PreviewWindow(QWidget):
     BackToOverview = Signal()
     ParametersChanged = Signal(dict, str)
@@ -201,7 +203,7 @@ class PreviewWindow(QWidget):
         #calculate image
         skeletonArray = self.originalImageArray
         for step in self.skeletonMap[self.currentSkeletonKey]["steps"][:self.currentStepIndex + 1]:
-            skeletonArray = step["function"](skeletonArray, parameters)
+            skeletonArray = stepFunctionMap[step["function"]](skeletonArray, parameters)
 
         skeletonArray = np.asarray(skeletonArray, dtype=np.float64)
 

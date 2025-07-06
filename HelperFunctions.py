@@ -155,33 +155,6 @@ def isLineStraight(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple
 
     return result
 
-statFunctionMap = {
-    "fractalDimension": {
-        functionKey: fractalDimension,
-        functionTypeKey: imageTypeKey
-    },
-    "linesInImage": {
-        functionKey: numLinesInImage,
-        functionTypeKey: imageTypeKey
-    },
-    "clustersInImage": {
-        functionKey: numClumpsInImage,
-        functionTypeKey: imageTypeKey
-    },
-    "linesInCluster": {
-        functionKey: numLinesInClump,
-        functionTypeKey: clusterTypeKey
-    },
-    "averageLineLength": {
-        functionKey: averageLengthOfLinesInClump,
-        functionTypeKey: clusterTypeKey
-    },
-    "isLineStraight": {
-        functionKey: isLineStraight,
-        functionTypeKey: lineTypeKey
-    }
-}
-
 def camel_case_to_capitalized(text):
     """
     Converts a camel case string to a capitalized string with spaces.
@@ -328,3 +301,30 @@ def DistanceToLine(P, A, B):
 
     # Return distance from P to the closest point
     return np.linalg.norm(P - closest_point)
+
+statFunctionMap = {
+    "fractalDimension": {
+        functionKey: fractalDimension,
+        functionTypeKey: imageTypeKey
+    },
+    "linesInImage": {
+        functionKey: numLinesInImage,
+        functionTypeKey: imageTypeKey
+    },
+    "clustersInImage": {
+        functionKey: numClumpsInImage,
+        functionTypeKey: imageTypeKey
+    },
+    "linesInCluster": {
+        functionKey: numLinesInClump,
+        functionTypeKey: clusterTypeKey
+    },
+    "averageLineLength": {
+        functionKey: averageLengthOfLinesInClump,
+        functionTypeKey: clusterTypeKey
+    },
+    "isLineStraight": {
+        functionKey: isLineStraight,
+        functionTypeKey: lineTypeKey
+    }
+}
