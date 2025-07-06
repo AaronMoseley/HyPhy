@@ -16,6 +16,7 @@ from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
 from CreateSkeleton import GenerateSkeleton
+import copy
 
 class ImageOverview(QWidget):
     ClickedOnSkeleton = Signal(str, str)
@@ -439,9 +440,13 @@ class ImageOverview(QWidget):
         self.LoadedNewImage.emit(calculations)
 
     def SetParameterValues(self, values:dict) -> None:
+        values = copy.deepcopy(values)
+
         for currSkeletonKey in values:
             for parameterKey in values[currSkeletonKey]:
-                self.sliderMap[currSkeletonKey][parameterKey].UpdateValue(values[currSkeletonKey][parameterKey])
+                slider:SliderLineEditCombo = self.sliderMap[currSkeletonKey][parameterKey]
+                value = values[currSkeletonKey][parameterKey]
+                slider.UpdateValue(value)
 
     def ChangeIndex(self, direction:int) -> None:
         if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
