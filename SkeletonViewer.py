@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel
-from PySide6.QtGui import QPixmap, QColor
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QApplication
+from PySide6.QtGui import QPixmap, QColor, QResizeEvent
 from PySide6.QtCore import Qt, Signal
 
 from collections import OrderedDict
@@ -52,7 +52,7 @@ class SkeletonViewer(QWidget):
         lengthLayout.addWidget(self.clumpLengthLabel)
 
         imageLayout = QHBoxLayout()
-        mainLayout.addLayout(imageLayout, 10)
+        mainLayout.addLayout(imageLayout, 50)
 
         blackPixmap = QPixmap(self.imageResolution, self.imageResolution)
         blackPixmap.fill(QColor("black"))
@@ -66,8 +66,11 @@ class SkeletonViewer(QWidget):
         self.skeletonLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.skeletonLabel)
 
+        paddedLayout = QVBoxLayout()
+        imageLayout.addLayout(paddedLayout)
+
         statsLayout = QVBoxLayout()
-        imageLayout.addLayout(statsLayout)
+        paddedLayout.addLayout(statsLayout, 1)
 
         self.calculationStatLabels = OrderedDict()
 
@@ -77,7 +80,9 @@ class SkeletonViewer(QWidget):
             self.calculationStatLabels[key] = newLabel
             newLabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-            statsLayout.addWidget(newLabel)
+            statsLayout.addWidget(newLabel, 1)
+
+        paddedLayout.addWidget(QWidget(), 1)
 
     def BackToOverview(self) -> None:
         self.BackButtonPressed.emit()
@@ -148,3 +153,15 @@ class SkeletonViewer(QWidget):
                 self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[currSkeletonKey][statsLabelKey]}")
             else:
                 self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: N/A")
+
+    def resizeEvent(self, event:QResizeEvent):
+        screen = QApplication.primaryScreen()
+        screen_rect = screen.availableGeometry()
+
+        if event.size().width() > screen_rect.width():
+            event.size().setWidth(screen_rect.width())
+
+        if event.size().height() > screen_rect.height():
+            event.size().setHeight(screen_rect.height())
+
+        return super().resizeEvent(event)
