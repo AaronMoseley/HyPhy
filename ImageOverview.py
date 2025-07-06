@@ -15,6 +15,7 @@ from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, skeletonKey, or
 from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
+from CreateSkeleton import GenerateSkeleton
 
 class ImageOverview(QWidget):
     ClickedOnSkeleton = Signal(str, str)
@@ -194,8 +195,7 @@ class ImageOverview(QWidget):
             for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
                 parameters[parameterKey] = self.sliderMap[currSkeletonKey][parameterKey].value()
 
-            skeletonResult = self.skeletonMap[currSkeletonKey]["function"](self.defaultInputDirectory, fileName,
-                                                    parameters)
+            skeletonResult = GenerateSkeleton(self.defaultInputDirectory, fileName, parameters, self.skeletonMap[currSkeletonKey]["steps"])
 
             newBaseFileName = baseFileName + "_" + currSkeletonKey
             newFileName = newBaseFileName + extension
@@ -473,7 +473,7 @@ class ImageOverview(QWidget):
         if not os.path.exists(self.defaultOutputDirectory):
             return
         
-        if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)):
+        if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)) * len(self.skeletonMap) + 1:
             return
             
         self.GetSamples(self.defaultInputDirectory)

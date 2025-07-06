@@ -205,7 +205,7 @@ def threshold_and_proximity(image, edgeDetection, maxThreshold, minThreshold, di
 
     return result
 
-def GenerateMatureHyphageSkeleton(directory:str, fileName:str, parameters:dict) -> dict:
+def GenerateSkeleton(directory:str, fileName:str, parameters:dict, steps:list) -> dict:
     if not fileName.endswith(".tif") and not fileName.endswith(".png"):
         return None
     
@@ -225,14 +225,9 @@ def GenerateMatureHyphageSkeleton(directory:str, fileName:str, parameters:dict) 
     originalImageArray -= minValue
     originalImageArray /= maxValue
 
-    thresholds = radial_interpolation_array(imgArray.shape[1], imgArray.shape[0], parameters["centerThreshold"], parameters["edgeThreshold"])
-
-    imgArray = np.asarray(imgArray < thresholds, dtype=np.float64)
-
-    imgArray = remove_small_white_islands(imgArray, parameters["minWhiteIslandSize"])
-    imgArray = remove_structurally_noisy_islands(imgArray, max_avg_black_neighbors=parameters["noiseTolerance"])
-    imgArray = smooth_binary_array(imgArray, sigma=parameters["gaussianBlurSigma"])
-    imgArray = skeletonize(imgArray)
+    #call all the functions
+    for step in steps:
+        imgArray = stepFunctionMap[step["function"]](imgArray, parameters)
 
     result = {}
     result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
@@ -250,55 +245,7 @@ def GenerateMatureHyphageSkeleton(directory:str, fileName:str, parameters:dict) 
     for key in statFunctionMap:
         result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
         
-    print(f"Created mature hyphage skeleton for {fileName}")
-
-    return result
-
-def GenerateNetworkSkeleton(directory:str, fileName:str, parameters:dict) -> dict:
-    if not fileName.endswith(".tif") and not fileName.endswith(".png"):
-        return None
-    
-    filePath = os.path.join(directory, fileName)
-    img = Image.open(filePath)
-
-    originalImageArray = np.asarray(img, dtype=np.float64)
-
-    imgArray = np.asarray(img, dtype=np.float64)
-
-    maxValue = np.max(imgArray)
-    minValue = np.min(imgArray)
-    imgArray -= minValue
-    maxValue -= minValue
-    imgArray /= maxValue
-
-    originalImageArray -= minValue
-    originalImageArray /= maxValue
-
-    imgAdjustedContrast = adjust_contrast(imgArray, parameters["contrastAdjustment"])
-
-    imgArray = feature.canny(imgAdjustedContrast, sigma=parameters["gaussianBlurSigma"])
-    imgArray = threshold_and_proximity(imgAdjustedContrast, imgArray, parameters["maxThreshold"], parameters["minThreshold"], 5, parameters["edgeNeighborRatio"])
-    imgArray = smooth_binary_array(imgArray, sigma=parameters["gaussianBlurSigma"])
-    imgArray = remove_small_white_islands(imgArray, parameters["minWhiteIslandSize"])
-    imgArray = skeletonize(imgArray)
-
-    result = {}
-    result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
-
-    lines, points, clusters = VectorizeSkeleton(imgArray)
-
-    vectors = {
-        linesKey: lines,
-        pointsKey: points,
-        clusterKey: clusters
-    }
-
-    result[vectorKey] = vectors
-
-    for key in statFunctionMap:
-        result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
-        
-    print(f"Created network skeleton for {fileName}")
+    print(f"Created skeleton for {fileName}")
 
     return result
 
@@ -335,3 +282,13 @@ def CallEdgeDetection(imgArray:np.ndarray, parameters:dict) -> np.ndarray:
     
     imgArray = threshold_and_proximity(imgArray, edges, parameters["maxThreshold"], parameters["minThreshold"], 5, parameters["edgeNeighborRatio"])
     return imgArray
+
+stepFunctionMap = {
+    "radialThreshold": RadialThreshold,
+    "removeSmallWhiteIslands": CallRemoveSmallWhiteIslands,
+    "removeStructurallyNoisyIslands": CallRemoveStructurallyNoisyIslands,
+    "smoothBinaryArray": CallSmoothBinaryArray,
+    "skeletonize": CallSkeletonize,
+    "adjustContrast": CallAdjustContrast,
+    "edgeDetection": CallEdgeDetection
+}
