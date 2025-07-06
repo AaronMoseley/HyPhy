@@ -33,7 +33,7 @@ class SkeletonViewer(QWidget):
         self.setLayout(mainLayout)
         
         topLayout = QHBoxLayout()
-        mainLayout.addLayout(topLayout)
+        mainLayout.addLayout(topLayout, 1)
 
         backButton = QPushButton("Back")
         backButton.pressed.connect(self.BackToOverview)
@@ -43,7 +43,7 @@ class SkeletonViewer(QWidget):
         topLayout.addWidget(self.imageTitleLabel)
 
         lengthLayout = QHBoxLayout()
-        mainLayout.addLayout(lengthLayout)
+        mainLayout.addLayout(lengthLayout, 1)
 
         self.lineLengthLabel = QLabel(self.lineLengthPrefix + "N/A")
         lengthLayout.addWidget(self.lineLengthLabel)
@@ -52,7 +52,7 @@ class SkeletonViewer(QWidget):
         lengthLayout.addWidget(self.clumpLengthLabel)
 
         imageLayout = QHBoxLayout()
-        mainLayout.addLayout(imageLayout)
+        mainLayout.addLayout(imageLayout, 10)
 
         blackPixmap = QPixmap(self.imageResolution, self.imageResolution)
         blackPixmap.fill(QColor("black"))

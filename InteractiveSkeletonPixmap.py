@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QLabel
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, QRect
 from PySide6.QtGui import QMouseEvent, QColor
 
 import numpy as np
@@ -15,6 +15,9 @@ class InteractiveSkeletonPixmap(QLabel):
 
     def __init__(self, dimension:int=512, parent=None):
         super().__init__(parent)
+
+        if self.size().width() > dimension:
+            dimension = self.size().width()
 
         self.setMouseTracking(True)
 
@@ -81,12 +84,63 @@ class InteractiveSkeletonPixmap(QLabel):
         self.PolylineHighlighted.emit(selectedLineLength, selectedClumpLength, self.selectedLineIndex, self.selectedClumpIndex)
 
     def mouseMoveEvent(self, event:QMouseEvent):
-        x = event.x() / self.dimension
-        y = 1 - (event.y() / self.dimension)
+        #x = event.x() / self.dimension
+        #y = 1 - ((event.y() - self.pos().y()) / self.dimension)
+        #y += 0.5
+        #y = event.y() / self.dimension
 
+        #print(f"{x} {y}")
+
+        #print(y)
+
+        pos = event.pos()  # QPoint relative to the label
+        pixmap = self.pixmap()
+
+        if pixmap is None:
+            return
+        
         if self.points is None or self.lines is None:
             return
         
+        label_size = self.size()
+        pixmap_size = pixmap.size()
+
+        # Default: assume pixmap is drawn at original size
+        drawn_width = pixmap_size.width()
+        drawn_height = pixmap_size.height()
+
+        if drawn_width > label_size.width() or drawn_height > label_size.height():
+            # Pixmap needs to be scaled down to fit label
+            pixmap_ratio = pixmap_size.width() / pixmap_size.height()
+            label_ratio = label_size.width() / label_size.height()
+
+            if pixmap_ratio > label_ratio:
+                # Width-constrained
+                drawn_width = label_size.width()
+                drawn_height = int(drawn_width / pixmap_ratio)
+            else:
+                # Height-constrained
+                drawn_height = label_size.height()
+                drawn_width = int(drawn_height * pixmap_ratio)
+
+        # Center the pixmap inside the label
+        x_offset = (label_size.width() - drawn_width) // 2
+        y_offset = (label_size.height() - drawn_height) // 2
+
+        # Create the actual drawn pixmap rectangle
+        pixmap_rect = QRect(x_offset, y_offset, drawn_width, drawn_height)
+
+        if pixmap_rect.contains(pos):
+            local_x = pos.x() - x_offset
+            local_y = pos.y() - y_offset
+
+            x = local_x / drawn_width
+            y = local_y / drawn_height
+        else:
+            return
+
+        y = 1 - y
+
         closestLine = -1
         closestDist = float("inf")
 
@@ -100,6 +154,8 @@ class InteractiveSkeletonPixmap(QLabel):
                 if dist < closestDist:
                     closestDist = dist
                     closestLine = i
+
+        #print(closestDist)
 
         if closestDist < self.maxSelectDistance:
             if closestLine != self.selectedLineIndex:

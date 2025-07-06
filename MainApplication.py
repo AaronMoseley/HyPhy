@@ -17,6 +17,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 import sys
 from PySide6.QtWidgets import QApplication, QWidget, QStackedLayout, QMainWindow
+from PySide6.QtGui import QResizeEvent
 
 from ImageOverview import ImageOverview
 from SkeletonViewer import SkeletonViewer
@@ -83,6 +84,18 @@ class MainApplication(QMainWindow):
     def BackToOverview(self) -> None:
         self.overview.SetParameterValues(self.parameterValues)
         self.primaryLayout.setCurrentWidget(self.overview)
+
+    def resizeEvent(self, event:QResizeEvent):
+        screen = QApplication.primaryScreen()
+        screen_rect = screen.availableGeometry()
+
+        if event.size().width() > screen_rect.width():
+            event.size().setWidth(screen_rect.width())
+
+        if event.size().height() > screen_rect.height():
+            event.size().setHeight(screen_rect.height())
+
+        return super().resizeEvent(event)
 
 # Run the application
 if __name__ == "__main__":
