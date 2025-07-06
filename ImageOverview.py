@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QComboBox, QApplication
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QComboBox, QApplication, QScrollArea
 from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtCore import Qt, Signal
 
@@ -118,12 +118,18 @@ class ImageOverview(QWidget):
         self.mainImageLayout = QVBoxLayout()
         layout.addLayout(self.mainImageLayout)
 
+        scrollableArea = QScrollArea(self)
+        scrollableArea.setWidgetResizable(True)
+        layout.addWidget(scrollableArea)
+        scrollContentWidget = QWidget()
+        scrollableArea.setWidget(scrollContentWidget)
+        scrollLayout = QVBoxLayout(scrollContentWidget)
+
         for currSkeletonKey in self.skeletonMap:
             currSkeletonLayout = QHBoxLayout()
             currLayout = QVBoxLayout()
             currSkeletonLayout.addLayout(currLayout)
-            #layout.addLayout(currLayout)
-            layout.addLayout(currSkeletonLayout)
+            scrollLayout.addLayout(currSkeletonLayout)
             self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
 
             currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
