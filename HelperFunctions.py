@@ -195,9 +195,10 @@ def camel_case_to_capitalized(text):
     return re.sub(r"([A-Z])", r" \1", text).title()
 
 def draw_lines_on_pixmap(points:list[tuple[float, float]], lines:list[list[int]], 
-                         dimension:int=249, colorMap:dict={}, line_color=QColor("white"), line_width=2):
-    pixmap = QPixmap(dimension, dimension)
-    pixmap.fill(QColor("black"))
+                         dimension:int=249, colorMap:dict={}, line_color=QColor("white"), line_width=2, pixmap:QPixmap=None):
+    if pixmap is None:
+        pixmap = QPixmap(dimension, dimension)
+        pixmap.fill(QColor("black"))
 
     painter = QPainter(pixmap)
     pen = QPen(line_color)

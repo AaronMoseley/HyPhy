@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QComboBox, QApplication
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtCore import Qt, Signal
 
 import numpy as np
@@ -47,6 +47,8 @@ class ImageOverview(QWidget):
 
         self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
         self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
+
+        self.currentSkeletonsOverlayed = set()
 
         self.sampleToFiles = {}
         self.currentFileList = []
@@ -324,12 +326,63 @@ class ImageOverview(QWidget):
 
             skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
 
+            buttonLayout = QHBoxLayout()
+            currLayout.addLayout(buttonLayout)
+
             previewButton = QPushButton("Preview Steps")
-            currLayout.addWidget(previewButton)
+            buttonLayout.addWidget(previewButton)
 
             previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
 
+            overlayButton = QPushButton("Toggle Overlay on Original")
+            buttonLayout.addWidget(overlayButton)
+
+            overlayButton.clicked.connect(partial(self.ToggleOverlay, currSkeletonKey))
+
         self.LoadNewSample(list(self.sampleToFiles.keys())[0])
+
+    def GetCurrentCalculations(self) -> dict:
+        imageFileName = self.currentFileList[self.currentIndex]
+
+        #load calculation file
+        calculationFileName = os.path.splitext(imageFileName)[0] + "_calculations.json"
+        calculationFilePath = os.path.join(self.defaultOutputDirectory, "Calculations", calculationFileName)
+
+        calculationFile = open(calculationFilePath, "r")
+        calculations = json.load(calculationFile)
+        calculationFile.close()
+
+        return calculations
+
+    def ToggleOverlay(self, currSkeletonKey:str) -> None:
+        imageFileName = self.currentFileList[self.currentIndex]
+        calculations = self.GetCurrentCalculations()
+        
+        if not currSkeletonKey in self.currentSkeletonsOverlayed:
+            self.currentSkeletonsOverlayed.add(currSkeletonKey)
+            
+            originalImage = Image.open(os.path.join(self.defaultInputDirectory, imageFileName))
+            originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
+
+            maxValue = np.max(originalImageArray)
+            minValue = np.min(originalImageArray)
+            originalImageArray -= minValue
+            maxValue -= minValue
+            originalImageArray /= maxValue
+
+            originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageSize, False)
+
+            overlayedPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize,
+                                                   line_width=1, line_color=QColor("red"), pixmap=originalImagePixmap)
+
+            self.skeletonLabels[currSkeletonKey].setPixmap(overlayedPixmap)
+
+        else:
+            self.currentSkeletonsOverlayed.remove(currSkeletonKey)
+
+            skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
+
+            self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
 
     def LoadPreview(self, currSkeletonKey:str) -> None:
         currImageName = self.currentFileList[self.currentIndex]
@@ -349,17 +402,13 @@ class ImageOverview(QWidget):
         self.ClickedOnSkeleton.emit(self.currentFileList[self.currentIndex], currSkeletonKey)
 
     def LoadImageIntoUI(self, index:int) -> None:
+        self.currentSkeletonsOverlayed = set()
+        
         self.currentIndex = index
 
         imageFileName = self.currentFileList[index]
 
-        #load calculation file
-        calculationFileName = os.path.splitext(imageFileName)[0] + "_calculations.json"
-        calculationFilePath = os.path.join(self.defaultOutputDirectory, "Calculations", calculationFileName)
-
-        calculationFile = open(calculationFilePath, "r")
-        calculations = json.load(calculationFile)
-        calculationFile.close()
+        calculations = self.GetCurrentCalculations()
 
         self.timestampLabel.setText(f"Timestamp: {calculations[timestampKey]}")
 
