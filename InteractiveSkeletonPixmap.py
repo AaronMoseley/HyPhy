@@ -10,7 +10,7 @@ from collections import deque
 from HelperFunctions import draw_lines_on_pixmap, DistanceToLine
 
 class InteractiveSkeletonPixmap(QLabel):
-    #line length, clump length, line index, clump index
+    #line length, cluster length, line index, cluster index
     PolylineHighlighted = Signal(float, float, int, int)
 
     def __init__(self, dimension:int=512, parent=None):
@@ -25,7 +25,7 @@ class InteractiveSkeletonPixmap(QLabel):
 
         self.points = None
         self.lines = None
-        self.clumps = None
+        self.clusters = None
 
         self.selectedLineIndex = -1
         self.selectedClumpIndex = -1
@@ -35,17 +35,17 @@ class InteractiveSkeletonPixmap(QLabel):
         self.selectedLineColor = QColor("purple")
         self.selectedClumpColor = QColor("red")
 
-    def SetLines(self, points:list[tuple[float, float]], lines:list[list[int]], clumps:list[list[int]]) -> None:
+    def SetLines(self, points:list[tuple[float, float]], lines:list[list[int]], clusters:list[list[int]]) -> None:
         self.points = points
         self.lines = lines
-        self.clumps = clumps
+        self.clusters = clusters
 
         pixmap = draw_lines_on_pixmap(points, lines, self.dimension)
         self.setPixmap(pixmap)
 
     def LineToClump(self, line:int) -> int:
-        for i in range(len(self.clumps)):
-            if line in self.clumps[i]:
+        for i in range(len(self.clusters)):
+            if line in self.clusters[i]:
                 return i
             
         return -1
@@ -56,7 +56,7 @@ class InteractiveSkeletonPixmap(QLabel):
         
         result = {}
 
-        for lineIndex in self.clumps[self.selectedClumpIndex]:
+        for lineIndex in self.clusters[self.selectedClumpIndex]:
             result[lineIndex] = self.selectedClumpColor
 
         result[self.selectedLineIndex] = self.selectedLineColor
@@ -75,8 +75,8 @@ class InteractiveSkeletonPixmap(QLabel):
             selectedLineLength += self.PointDistance(self.points[self.lines[self.selectedLineIndex][i]], self.points[self.lines[self.selectedLineIndex][i + 1]])
 
         selectedClumpLength = 0.0
-        for i in range(len(self.clumps[self.selectedClumpIndex])):
-            lineIndex = self.clumps[self.selectedClumpIndex][i]
+        for i in range(len(self.clusters[self.selectedClumpIndex])):
+            lineIndex = self.clusters[self.selectedClumpIndex][i]
 
             for j in range(len(self.lines[lineIndex]) - 1):
                 selectedClumpLength += self.PointDistance(self.points[self.lines[lineIndex][j]], self.points[self.lines[lineIndex][j + 1]])

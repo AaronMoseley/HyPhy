@@ -78,16 +78,16 @@ def fractalDimension(skeleton:np.ndarray, lines:list[list[int]], points:list[tup
 def numLinesInImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
     return len(lines)
 
-#number of clumps in image
+#number of clusters in image
 def numClumpsInImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
     return len(clusters)
 
-#number of lines in each clump
+#number of lines in each cluster
 def numLinesInClump(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[int]:
     result = [len(cluster) for cluster in clusters]
     return result
 
-#average length of lines in clump
+#average length of lines in cluster
 def averageLengthOfLinesInClump(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
     result = []
 
