@@ -65,7 +65,6 @@ class ImageOverview(QWidget):
     def CreateUI(self):
         # Set window title and size
         self.setWindowTitle("Fungal Structure Detector")
-        self.setGeometry(100, 100, 600, 200)
 
         # Layout
         self.mainLayout = QHBoxLayout()

@@ -25,9 +25,17 @@ from PreviewWindow import PreviewWindow
 
 import json
 
-class MainApplication(QMainWindow):
+class MainApplication(QWidget):
     def __init__(self) -> None:
         super().__init__()
+
+        screen_geometry = QApplication.primaryScreen().availableGeometry()
+        screen_size = screen_geometry.size()
+
+        # Set max size to screen size
+        #self.setMaximumSize(screen_size)
+
+        self.setFixedSize(screen_size.width(), screen_size.height() * 0.9)
 
         skeletonFile = open("SkeletonMap.json", "r")
         self.skeletonMap = json.load(skeletonFile)
@@ -48,9 +56,9 @@ class MainApplication(QMainWindow):
 
         self.overview.LoadPreviousResults()
 
-        centralWidget = QWidget()
-        self.primaryLayout = QStackedLayout(centralWidget)
-        self.setCentralWidget(centralWidget)    
+        #centralWidget = QWidget()
+        self.primaryLayout = QStackedLayout(self)
+        #self.setCentralWidget(centralWidget)    
 
         self.primaryLayout.addWidget(self.overview)
         self.primaryLayout.addWidget(self.skeletonViewer)
