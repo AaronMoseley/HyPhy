@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QLabel
-from PySide6.QtCore import Signal, QRect
+from PySide6.QtCore import Signal, QRect, Qt
 from PySide6.QtGui import QMouseEvent, QColor
 
 import numpy as np
@@ -27,21 +27,25 @@ class InteractiveSkeletonPixmap(QLabel):
         self.lines = None
         self.clusters = None
 
-        self.selectedLineIndex = -1
-        self.selectedClumpIndex = -1
+        self.hoveredLineIndex = None
+        self.hoveredClumpIndex = None
+
+        self.selectedLineIndex = None
+        self.selectedClumpIndex = None
 
         self.maxSelectDistance = 0.01
 
         self.selectedLineColor = QColor("purple")
         self.selectedClumpColor = QColor("red")
 
+        self.hoveredLineColor = QColor("yellow")
+
     def SetLines(self, points:list[tuple[float, float]], lines:list[list[int]], clusters:list[list[int]]) -> None:
         self.points = points
         self.lines = lines
         self.clusters = clusters
 
-        pixmap = draw_lines_on_pixmap(points, lines, self.dimension)
-        self.setPixmap(pixmap)
+        self.UpdateLines()
 
     def LineToClump(self, line:int) -> int:
         for i in range(len(self.clusters)):
@@ -51,15 +55,21 @@ class InteractiveSkeletonPixmap(QLabel):
         return -1
     
     def GetColorMap(self) -> dict:
-        if self.selectedClumpIndex is None or self.selectedLineIndex is None:
+        if self.hoveredClumpIndex is None and self.hoveredLineIndex is None \
+            and self.selectedLineIndex is None and self.selectedClumpIndex is None:
             return {}
         
         result = {}
 
-        for lineIndex in self.clusters[self.selectedClumpIndex]:
-            result[lineIndex] = self.selectedClumpColor
+        if self.selectedClumpIndex is not None:
+            for lineIndex in self.clusters[self.selectedClumpIndex]:
+                result[lineIndex] = self.selectedClumpColor
 
-        result[self.selectedLineIndex] = self.selectedLineColor
+        if self.hoveredLineIndex is not None:
+            result[self.hoveredLineIndex] = self.hoveredLineColor
+
+        if self.selectedLineIndex is not None:
+            result[self.selectedLineIndex] = self.selectedLineColor
 
         return result
     
@@ -67,21 +77,21 @@ class InteractiveSkeletonPixmap(QLabel):
         return math.sqrt(pow(point2[0] - point1[0], 2) + pow(point2[1] - point1[1], 2))
 
     def EmitLineData(self) -> None:
-        if self.selectedClumpIndex is None or self.selectedLineIndex is None:
+        if self.hoveredClumpIndex is None or self.hoveredLineIndex is None:
             return
         
         selectedLineLength = 0.0
-        for i in range(len(self.lines[self.selectedLineIndex]) - 1):
-            selectedLineLength += self.PointDistance(self.points[self.lines[self.selectedLineIndex][i]], self.points[self.lines[self.selectedLineIndex][i + 1]])
+        for i in range(len(self.lines[self.hoveredLineIndex]) - 1):
+            selectedLineLength += self.PointDistance(self.points[self.lines[self.hoveredLineIndex][i]], self.points[self.lines[self.hoveredLineIndex][i + 1]])
 
         selectedClumpLength = 0.0
-        for i in range(len(self.clusters[self.selectedClumpIndex])):
-            lineIndex = self.clusters[self.selectedClumpIndex][i]
+        for i in range(len(self.clusters[self.hoveredClumpIndex])):
+            lineIndex = self.clusters[self.hoveredClumpIndex][i]
 
             for j in range(len(self.lines[lineIndex]) - 1):
                 selectedClumpLength += self.PointDistance(self.points[self.lines[lineIndex][j]], self.points[self.lines[lineIndex][j + 1]])
 
-        self.PolylineHighlighted.emit(selectedLineLength, selectedClumpLength, self.selectedLineIndex, self.selectedClumpIndex)
+        self.PolylineHighlighted.emit(selectedLineLength, selectedClumpLength, self.hoveredLineIndex, self.hoveredClumpIndex)
 
     def mouseMoveEvent(self, event:QMouseEvent):
         #x = event.x() / self.dimension
@@ -155,23 +165,34 @@ class InteractiveSkeletonPixmap(QLabel):
                     closestDist = dist
                     closestLine = i
 
-        #print(closestDist)
-
         if closestDist < self.maxSelectDistance:
-            if closestLine != self.selectedLineIndex:
-                self.selectedLineIndex = closestLine
-                self.selectedClumpIndex = self.LineToClump(closestLine)
+            if closestLine != self.hoveredLineIndex:
+                self.hoveredLineIndex = closestLine
+                self.hoveredClumpIndex = self.LineToClump(closestLine)
 
-                colorMap = self.GetColorMap()
-                pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension, colorMap)
-                self.setPixmap(pixmap)
+                self.UpdateLines()
                 self.EmitLineData()
         else:
-            if self.selectedLineIndex is not None:
+            if self.hoveredLineIndex is not None:
+                self.hoveredLineIndex = None
+                self.hoveredClumpIndex = None
+
+                self.UpdateLines()
+
+                self.PolylineHighlighted.emit(-1, -1, -1, -1)
+
+    def mousePressEvent(self, event:QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.hoveredLineIndex is not None:
+                self.selectedLineIndex = self.hoveredLineIndex
+                self.selectedClumpIndex = self.hoveredClumpIndex
+            else:
                 self.selectedLineIndex = None
                 self.selectedClumpIndex = None
 
-                pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension)
-                self.setPixmap(pixmap)
+            self.UpdateLines()
 
-                self.PolylineHighlighted.emit(-1, -1, -1, -1)
+    def UpdateLines(self) -> None:
+        colorMap = self.GetColorMap()
+        pixmap = draw_lines_on_pixmap(self.points, self.lines, self.dimension, colorMap)
+        self.setPixmap(pixmap)
