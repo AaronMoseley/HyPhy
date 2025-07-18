@@ -2,10 +2,7 @@ from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Signal, QRect, Qt
 from PySide6.QtGui import QMouseEvent, QColor
 
-import numpy as np
 import math
-
-from collections import deque
 
 from HelperFunctions import draw_lines_on_pixmap, DistanceToLine
 
@@ -182,13 +179,13 @@ class InteractiveSkeletonPixmap(QLabel):
             if self.hoveredLineIndex is not None:
                 self.selectedLineIndex = self.hoveredLineIndex
                 self.selectedClumpIndex = self.hoveredClumpIndex
-                self.UpdateLineComments.emit(self.selectedLineIndex, self.selectedClumpIndex)
                 self.EmitLineData()
+                self.UpdateLineComments.emit(self.selectedLineIndex, self.selectedClumpIndex)
             else:
                 self.selectedLineIndex = None
                 self.selectedClumpIndex = None
-                self.UpdateLineComments.emit(-1, -1)
                 self.UpdateLineData.emit(-1, -1, -1, -1)
+                self.UpdateLineComments.emit(-1, -1)
 
             self.UpdateLines()
 

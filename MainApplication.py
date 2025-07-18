@@ -49,6 +49,7 @@ class MainApplication(QWidget):
         self.skeletonViewer = SkeletonViewer()
         self.skeletonViewer.BackButtonPressed.connect(self.BackToOverview)
         self.overview.LoadedNewImage.connect(self.skeletonViewer.SetCurrentImage)
+        self.skeletonViewer.CommentsChanged.connect(self.overview.UpdateComments)
 
         self.previewWindow = PreviewWindow(self.skeletonMap)
         self.previewWindow.BackToOverview.connect(self.BackToOverview)

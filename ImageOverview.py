@@ -19,504 +19,524 @@ from CreateSkeleton import GenerateSkeleton
 import copy
 
 class ImageOverview(QWidget):
-    ClickedOnSkeleton = Signal(str, str)
-    LoadedNewImage = Signal(dict)
-    ParametersChanged = Signal(dict, str)
-    TriggerPreview = Signal(str, str)
+	ClickedOnSkeleton = Signal(str, str)
+	LoadedNewImage = Signal(dict)
+	ParametersChanged = Signal(dict, str)
+	TriggerPreview = Signal(str, str)
 
-    def __init__(self, skeletonMap:dict) -> None:
-        super().__init__()
+	def __init__(self, skeletonMap:dict) -> None:
+		super().__init__()
 
-        self.skeletonMap = skeletonMap
+		self.skeletonMap = skeletonMap
 
-        self.imageSize = 256
+		self.imageSize = 256
 
-        self.currentIndex = 0
+		self.currentIndex = 0
 
-        self.imageTitleLabelPrefix = "File Name: "
+		self.imageTitleLabelPrefix = "File Name: "
 
-        self.workingDirectory = os.getcwd()
+		self.workingDirectory = os.getcwd()
 
-        self.createdSkeletons = False
-        self.skeletonUIAdded = False
+		self.createdSkeletons = False
+		self.skeletonUIAdded = False
 
-        self.defaultInputDirectory = ""
-        self.defaultOutputDirectory = ""
+		self.defaultInputDirectory = ""
+		self.defaultOutputDirectory = ""
 
-        self.currentSample = ""
+		self.currentSample = ""
 
-        self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
+		self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
 
-        self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
-        self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
+		self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
+		self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")
 
-        self.currentSkeletonsOverlayed = set()
+		self.currentSkeletonsOverlayed = set()
 
-        self.sampleToFiles = {}
-        self.currentFileList = []
+		self.sampleToFiles = {}
+		self.currentFileList = []
 
-        if os.path.exists(self.initSettingsFilePath):
-            self.LoadInitializationSettings()
-        else:
-            self.CreateInitializationSettings()
+		if os.path.exists(self.initSettingsFilePath):
+			self.LoadInitializationSettings()
+		else:
+			self.CreateInitializationSettings()
 
-        self.CreateUI()
+		self.CreateUI()
 
-    def CreateUI(self):
-        # Set window title and size
-        self.setWindowTitle("Fungal Structure Detector")
+	def CreateUI(self):
+		# Set window title and size
+		self.setWindowTitle("Fungal Structure Detector")
 
-        # Layout
-        self.mainLayout = QHBoxLayout()
-        self.setLayout(self.mainLayout)
+		# Layout
+		self.mainLayout = QHBoxLayout()
+		self.setLayout(self.mainLayout)
 
-        buttonLayout = QVBoxLayout()
-        self.mainLayout.addLayout(buttonLayout)
+		buttonLayout = QVBoxLayout()
+		self.mainLayout.addLayout(buttonLayout)
 
-        self.AddButtonUI(buttonLayout)
+		self.AddButtonUI(buttonLayout)
 
-    def AddButtonUI(self, layout:QVBoxLayout|QHBoxLayout) -> None:
-        inputDirLayout = QHBoxLayout()
-        layout.addLayout(inputDirLayout)
-        inputDirLabel = QPushButton("Input Directory:")
-        inputDirLayout.addWidget(inputDirLabel)
-        self.inputDirLineEdit = QLineEdit()
-        self.inputDirLineEdit.setPlaceholderText("...")
-        self.inputDirLineEdit.setText(self.defaultInputDirectory)
-        inputDirLayout.addWidget(self.inputDirLineEdit)
+	def AddButtonUI(self, layout:QVBoxLayout|QHBoxLayout) -> None:
+		inputDirLayout = QHBoxLayout()
+		layout.addLayout(inputDirLayout)
+		inputDirLabel = QPushButton("Input Directory:")
+		inputDirLayout.addWidget(inputDirLabel)
+		self.inputDirLineEdit = QLineEdit()
+		self.inputDirLineEdit.setPlaceholderText("...")
+		self.inputDirLineEdit.setText(self.defaultInputDirectory)
+		inputDirLayout.addWidget(self.inputDirLineEdit)
 
-        inputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.inputDirLineEdit))
+		inputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.inputDirLineEdit))
 
-        outputDirLayout = QHBoxLayout()
-        layout.addLayout(outputDirLayout)
-        outputDirLabel = QPushButton("Output Directory:")
-        outputDirLayout.addWidget(outputDirLabel)
-        self.outputDirLineEdit = QLineEdit()
-        self.outputDirLineEdit.setPlaceholderText("...")
-        self.outputDirLineEdit.setText(self.defaultOutputDirectory)
-        outputDirLayout.addWidget(self.outputDirLineEdit)
+		outputDirLayout = QHBoxLayout()
+		layout.addLayout(outputDirLayout)
+		outputDirLabel = QPushButton("Output Directory:")
+		outputDirLayout.addWidget(outputDirLabel)
+		self.outputDirLineEdit = QLineEdit()
+		self.outputDirLineEdit.setPlaceholderText("...")
+		self.outputDirLineEdit.setText(self.defaultOutputDirectory)
+		outputDirLayout.addWidget(self.outputDirLineEdit)
 
-        outputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.outputDirLineEdit))
+		outputDirLabel.clicked.connect(partial(self.SelectDirectoryAndSetLineEdit, self.outputDirLineEdit))
 
-        generateSkeletonsButton = QPushButton("Generate All Skeletons")
-        generateSkeletonsButton.clicked.connect(self.GenerateSkeletons)
-        layout.addWidget(generateSkeletonsButton)
+		generateSkeletonsButton = QPushButton("Generate All Skeletons")
+		generateSkeletonsButton.clicked.connect(self.GenerateSkeletons)
+		layout.addWidget(generateSkeletonsButton)
 
-        self.generateIndividualSkeletonButton = QPushButton("Generate Single Skeleton")
-        self.generateIndividualSkeletonButton.clicked.connect(self.GenerateSingleSkeleton)
-        layout.addWidget(self.generateIndividualSkeletonButton)
-        self.generateIndividualSkeletonButton.setEnabled(False)
+		self.generateIndividualSkeletonButton = QPushButton("Generate Single Skeleton")
+		self.generateIndividualSkeletonButton.clicked.connect(self.GenerateSingleSkeleton)
+		layout.addWidget(self.generateIndividualSkeletonButton)
+		self.generateIndividualSkeletonButton.setEnabled(False)
 
-        self.generateSampleSkeletonsButton = QPushButton("Generate Skeletons for Current Sample")
-        self.generateSampleSkeletonsButton.clicked.connect(self.GenerateSampleSkeletons)
-        layout.addWidget(self.generateSampleSkeletonsButton)
-        self.generateSampleSkeletonsButton.setEnabled(False)
+		self.generateSampleSkeletonsButton = QPushButton("Generate Skeletons for Current Sample")
+		self.generateSampleSkeletonsButton.clicked.connect(self.GenerateSampleSkeletons)
+		layout.addWidget(self.generateSampleSkeletonsButton)
+		self.generateSampleSkeletonsButton.setEnabled(False)
 
-        self.sliderMap = {}
+		self.sliderMap = {}
 
-        self.skeletonLayouts = {}
+		self.skeletonLayouts = {}
 
-        self.mainImageLayout = QVBoxLayout()
-        layout.addLayout(self.mainImageLayout)
+		self.mainImageLayout = QVBoxLayout()
+		layout.addLayout(self.mainImageLayout)
 
-        scrollableArea = QScrollArea(self)
-        scrollableArea.setWidgetResizable(True)
-        layout.addWidget(scrollableArea)
-        scrollContentWidget = QWidget()
-        scrollableArea.setWidget(scrollContentWidget)
-        scrollLayout = QVBoxLayout(scrollContentWidget)
-
-        for currSkeletonKey in self.skeletonMap:
-            currSkeletonLayout = QHBoxLayout()
-            currLayout = QVBoxLayout()
-            currSkeletonLayout.addLayout(currLayout)
-            scrollLayout.addLayout(currSkeletonLayout)
-            self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
+		scrollableArea = QScrollArea(self)
+		scrollableArea.setWidgetResizable(True)
+		layout.addWidget(scrollableArea)
+		scrollContentWidget = QWidget()
+		scrollableArea.setWidget(scrollContentWidget)
+		scrollLayout = QVBoxLayout(scrollContentWidget)
 
-            currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
-            
-            currentResult = {}
+		for currSkeletonKey in self.skeletonMap:
+			currSkeletonLayout = QHBoxLayout()
+			currLayout = QVBoxLayout()
+			currSkeletonLayout.addLayout(currLayout)
+			scrollLayout.addLayout(currSkeletonLayout)
+			self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
 
-            for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
-                parameterInfo = self.skeletonMap[currSkeletonKey]["parameters"][parameterKey]
+			currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
+			
+			currentResult = {}
+
+			for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
+				parameterInfo = self.skeletonMap[currSkeletonKey]["parameters"][parameterKey]
 
-                currentSlider = SliderLineEditCombo(parameterInfo["name"], defaultVal=parameterInfo["default"], 
-                                                    min_val=parameterInfo["min"], max_val=parameterInfo["max"], decimals=parameterInfo["decimals"])
-                
-                currentSlider.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
+				currentSlider = SliderLineEditCombo(parameterInfo["name"], defaultVal=parameterInfo["default"], 
+													min_val=parameterInfo["min"], max_val=parameterInfo["max"], decimals=parameterInfo["decimals"])
+				
+				currentSlider.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
 
-                currLayout.addLayout(currentSlider)
+				currLayout.addLayout(currentSlider)
 
-                currentResult[parameterKey] = currentSlider
+				currentResult[parameterKey] = currentSlider
 
-            self.sliderMap[currSkeletonKey] = currentResult
+			self.sliderMap[currSkeletonKey] = currentResult
 
-    def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
-        self.ParametersChanged.emit(self.sliderMap, currSkeletonKey)
+	def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
+		self.ParametersChanged.emit(self.sliderMap, currSkeletonKey)
 
-    def LoadOtherParameters(self, values:dict) -> None:
-        for currSkeletonKey in self.sliderMap:
-            for parameterKey in self.sliderMap[currSkeletonKey]:
-                self.sliderMap[currSkeletonKey][parameterKey].UpdateValue(values[currSkeletonKey][parameterKey])
+	def LoadOtherParameters(self, values:dict) -> None:
+		for currSkeletonKey in self.sliderMap:
+			for parameterKey in self.sliderMap[currSkeletonKey]:
+				self.sliderMap[currSkeletonKey][parameterKey].UpdateValue(values[currSkeletonKey][parameterKey])
 
-    def ReadDirectories(self) -> None:
-        inputDir = self.inputDirLineEdit.text()
-        outputDir = self.outputDirLineEdit.text()
-
-        self.defaultInputDirectory = inputDir
-        self.defaultOutputDirectory = outputDir
-        self.CreateInitializationSettings()
+	def ReadDirectories(self) -> None:
+		inputDir = self.inputDirLineEdit.text()
+		outputDir = self.outputDirLineEdit.text()
 
-        #create sample map based on input directory
-        self.GetSamples(inputDir)
-
-        if not os.path.exists(os.path.join(self.defaultOutputDirectory, "Calculations")):
-            os.makedirs(os.path.join(self.defaultOutputDirectory, "Calculations"))
-
-    def CreateSkeleton(self, fileName:str, sample:str) -> None:
-        jsonResult = {}
-        
-        jsonResult[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
-
-        #save skeleton image file
-        baseFileName, extension = os.path.splitext(fileName)
-        
-        #save JSON file for image
-        fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
-        timestamp = int(fileNameSplit[-1])
-
-        jsonResult[timestampKey] = timestamp
-        jsonResult[sampleKey] = sample
-        
-        #get result from skeleton creator
-        for currSkeletonKey in self.skeletonMap:
-            #create parameters
-            parameters = {}
-            for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
-                parameters[parameterKey] = self.sliderMap[currSkeletonKey][parameterKey].value()
-
-            skeletonResult = GenerateSkeleton(self.defaultInputDirectory, fileName, parameters, self.skeletonMap[currSkeletonKey]["steps"])
-
-            newBaseFileName = baseFileName + "_" + currSkeletonKey
-            newFileName = newBaseFileName + extension
-
-            imgArray = skeletonResult[skeletonKey]
-            img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
-            img = img.convert("RGB")
-            img.save(os.path.join(self.defaultOutputDirectory, newFileName))
-
-            skeletonResult[skeletonKey] = os.path.join(self.defaultOutputDirectory, newFileName)
-
-            jsonResult[currSkeletonKey] = skeletonResult
-
-        jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
-        jsonFile = open(jsonFilePath, "w")
-        json.dump(jsonResult, jsonFile, indent=4)
-        jsonFile.close()
-
-    def GenerateSingleSkeleton(self) -> None:
-        self.ReadDirectories()
-
-        progressBar = ProgressBarPopup(maximum=2)
-        progressBar.increment()
-        progressBar.show()
-        QApplication.processEvents()
-
-        self.CreateSkeleton(self.currentFileList[self.currentIndex], self.currentSample)
-
-        progressBar.increment()
-        QApplication.processEvents()
-
-        self.LoadImageIntoUI(self.currentIndex)
-
-    def GenerateSampleSkeletons(self) -> None:
-        self.ReadDirectories()
-
-        progressBar = ProgressBarPopup(maximum=len(self.sampleToFiles[self.currentSample]))
-        progressBar.show()
-        QApplication.processEvents()
+		self.defaultInputDirectory = inputDir
+		self.defaultOutputDirectory = outputDir
+		self.CreateInitializationSettings()
 
-        for fileName in self.sampleToFiles[self.currentSample]:
-            self.CreateSkeleton(fileName, self.currentSample)
-            progressBar.increment()
-            QApplication.processEvents()
+		#create sample map based on input directory
+		self.GetSamples(inputDir)
 
-        self.LoadImageIntoUI(self.currentIndex)
+		if not os.path.exists(os.path.join(self.defaultOutputDirectory, "Calculations")):
+			os.makedirs(os.path.join(self.defaultOutputDirectory, "Calculations"))
 
-    def GenerateSkeletons(self) -> None:
-        self.createdSkeletons = True
-        
-        self.ReadDirectories()
+	def CreateSkeleton(self, fileName:str, sample:str) -> None:
+		jsonResult = {}
+		
+		jsonResult[originalImageKey] = os.path.join(self.defaultInputDirectory, fileName)
 
-        totalFiles = 0
-        for sample in self.sampleToFiles:
-            totalFiles += len(self.sampleToFiles[sample])
+		#save skeleton image file
+		baseFileName, extension = os.path.splitext(fileName)
+		
+		#save JSON file for image
+		fileNameSplit:list[str] = os.path.splitext(fileName)[0].split("_")
+		timestamp = int(fileNameSplit[-1])
 
-        progressBar = ProgressBarPopup(maximum=totalFiles)
-        progressBar.show()
-        QApplication.processEvents()
+		jsonResult[timestampKey] = timestamp
+		jsonResult[sampleKey] = sample
+		
+		#get result from skeleton creator
+		for currSkeletonKey in self.skeletonMap:
+			#create parameters
+			parameters = {}
+			for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
+				parameters[parameterKey] = self.sliderMap[currSkeletonKey][parameterKey].value()
 
-        #loop through samples/files
-        for sample in self.sampleToFiles:
-            for fileName in self.sampleToFiles[sample]:
-                self.CreateSkeleton(fileName, sample)
-                progressBar.increment()
-                QApplication.processEvents()
+			skeletonResult = GenerateSkeleton(self.defaultInputDirectory, fileName, parameters, self.skeletonMap[currSkeletonKey]["steps"])
 
-        #add skeleton UI
-        self.AddSkeletonUI()
+			newBaseFileName = baseFileName + "_" + currSkeletonKey
+			newFileName = newBaseFileName + extension
 
-    def AddSkeletonUI(self) -> None:
-        if self.skeletonUIAdded:
-            self.LoadImageIntoUI(0)
-            return
-        
-        self.skeletonUIAdded = True
-        
-        self.resize(1000, 500)
+			imgArray = skeletonResult[skeletonKey]
+			img = Image.fromarray(np.asarray(imgArray * 255, dtype=np.uint8), mode="L")
+			img = img.convert("RGB")
+			img.save(os.path.join(self.defaultOutputDirectory, newFileName))
+
+			skeletonResult[skeletonKey] = os.path.join(self.defaultOutputDirectory, newFileName)
 
-        self.generateIndividualSkeletonButton.setEnabled(True)
-        self.generateSampleSkeletonsButton.setEnabled(True)
+			jsonResult[currSkeletonKey] = skeletonResult
+
+		jsonResult["lineComments"] = {}
+		jsonResult["clusterComments"] = {}
 
-        mainImageAndInfoLayout = QHBoxLayout()
-        self.mainImageLayout.addLayout(mainImageAndInfoLayout)
+		jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
+		jsonFile = open(jsonFilePath, "w")
+		json.dump(jsonResult, jsonFile, indent=4)
+		jsonFile.close()
 
-        infoLayout = QVBoxLayout()
-        mainImageAndInfoLayout.addLayout(infoLayout)
+	def UpdateComments(self, lineIndex:int, lineComments:str, clusterIndex:int, clusterComments:str) -> None:
+		calculations = self.GetCurrentCalculations()
 
-        self.sampleDropdown = QComboBox()
-        self.sampleDropdown.addItems(list(self.sampleToFiles.keys()))
-        self.sampleDropdown.currentTextChanged.connect(self.LoadNewSample)
-        self.sampleDropdown.setCurrentIndex(0)
-        infoLayout.addWidget(self.sampleDropdown)
+		calculations["lineComments"][str(lineIndex)] = lineComments
+		calculations["clusterComments"][str(clusterIndex)] = clusterComments
+
+		calculationsFilePath = self.GetCurrentCalculationsFile()
+
+		jsonFile = open(calculationsFilePath, "w")
+		json.dump(calculations, jsonFile, indent=4)
+		jsonFile.close()
+
+	def GenerateSingleSkeleton(self) -> None:
+		self.ReadDirectories()
+
+		progressBar = ProgressBarPopup(maximum=2)
+		progressBar.increment()
+		progressBar.show()
+		QApplication.processEvents()
+
+		self.CreateSkeleton(self.currentFileList[self.currentIndex], self.currentSample)
+
+		progressBar.increment()
+		QApplication.processEvents()
+
+		self.LoadImageIntoUI(self.currentIndex)
 
-        self.timestampLabel = QLabel("Timestamp: N/A")
-        self.timestampLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        infoLayout.addWidget(self.timestampLabel)
+	def GenerateSampleSkeletons(self) -> None:
+		self.ReadDirectories()
 
-        self.originalImageLabel = ClickableLabel()
-        self.originalImageLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        mainImageAndInfoLayout.addWidget(self.originalImageLabel)
+		progressBar = ProgressBarPopup(maximum=len(self.sampleToFiles[self.currentSample]))
+		progressBar.show()
+		QApplication.processEvents()
 
-        self.originalImageLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
+		for fileName in self.sampleToFiles[self.currentSample]:
+			self.CreateSkeleton(fileName, self.currentSample)
+			progressBar.increment()
+			QApplication.processEvents()
 
-        scrollButtonLayout = QHBoxLayout()
-        self.mainImageLayout.addLayout(scrollButtonLayout)
-        self.leftButton = QPushButton("🠨")
-        font = self.leftButton.font()
-        font.setPointSize(25)
-        self.leftButton.setFont(font)
-        scrollButtonLayout.addWidget(self.leftButton)
-        self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
+		self.LoadImageIntoUI(self.currentIndex)
 
-        self.leftButton.setEnabled(False)
+	def GenerateSkeletons(self) -> None:
+		self.createdSkeletons = True
+		
+		self.ReadDirectories()
 
-        self.rightButton = QPushButton("🠪")
-        font = self.rightButton.font()
-        font.setPointSize(25)
-        self.rightButton.setFont(font)
-        scrollButtonLayout.addWidget(self.rightButton)
-        self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
+		totalFiles = 0
+		for sample in self.sampleToFiles:
+			totalFiles += len(self.sampleToFiles[sample])
 
-        self.skeletonLabels = {}
+		progressBar = ProgressBarPopup(maximum=totalFiles)
+		progressBar.show()
+		QApplication.processEvents()
 
-        for currSkeletonKey in self.skeletonMap:
-            skeletonLabel = ClickableLabel()
-            skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
-            self.skeletonLabels[currSkeletonKey] = skeletonLabel
+		#loop through samples/files
+		for sample in self.sampleToFiles:
+			for fileName in self.sampleToFiles[sample]:
+				self.CreateSkeleton(fileName, sample)
+				progressBar.increment()
+				QApplication.processEvents()
 
-            currLayout = QVBoxLayout()
-            self.skeletonLayouts[currSkeletonKey].addLayout(currLayout)
+		#add skeleton UI
+		self.AddSkeletonUI()
 
-            currLayout.addWidget(skeletonLabel)
+	def AddSkeletonUI(self) -> None:
+		if self.skeletonUIAdded:
+			self.LoadImageIntoUI(0)
+			return
+		
+		self.skeletonUIAdded = True
+		
+		self.resize(1000, 500)
 
-            skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
+		self.generateIndividualSkeletonButton.setEnabled(True)
+		self.generateSampleSkeletonsButton.setEnabled(True)
 
-            buttonLayout = QHBoxLayout()
-            currLayout.addLayout(buttonLayout)
+		mainImageAndInfoLayout = QHBoxLayout()
+		self.mainImageLayout.addLayout(mainImageAndInfoLayout)
 
-            previewButton = QPushButton("Preview Steps")
-            buttonLayout.addWidget(previewButton)
+		infoLayout = QVBoxLayout()
+		mainImageAndInfoLayout.addLayout(infoLayout)
 
-            previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
+		self.sampleDropdown = QComboBox()
+		self.sampleDropdown.addItems(list(self.sampleToFiles.keys()))
+		self.sampleDropdown.currentTextChanged.connect(self.LoadNewSample)
+		self.sampleDropdown.setCurrentIndex(0)
+		infoLayout.addWidget(self.sampleDropdown)
 
-            overlayButton = QPushButton("Toggle Overlay on Original")
-            buttonLayout.addWidget(overlayButton)
+		self.timestampLabel = QLabel("Timestamp: N/A")
+		self.timestampLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+		infoLayout.addWidget(self.timestampLabel)
 
-            overlayButton.clicked.connect(partial(self.ToggleOverlay, currSkeletonKey))
+		self.originalImageLabel = ClickableLabel()
+		self.originalImageLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+		mainImageAndInfoLayout.addWidget(self.originalImageLabel)
 
-        self.LoadNewSample(list(self.sampleToFiles.keys())[0])
+		self.originalImageLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
 
-    def GetCurrentCalculations(self) -> dict:
-        imageFileName = self.currentFileList[self.currentIndex]
+		scrollButtonLayout = QHBoxLayout()
+		self.mainImageLayout.addLayout(scrollButtonLayout)
+		self.leftButton = QPushButton("🠨")
+		font = self.leftButton.font()
+		font.setPointSize(25)
+		self.leftButton.setFont(font)
+		scrollButtonLayout.addWidget(self.leftButton)
+		self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
 
-        #load calculation file
-        calculationFileName = os.path.splitext(imageFileName)[0] + "_calculations.json"
-        calculationFilePath = os.path.join(self.defaultOutputDirectory, "Calculations", calculationFileName)
+		self.leftButton.setEnabled(False)
 
-        calculationFile = open(calculationFilePath, "r")
-        calculations = json.load(calculationFile)
-        calculationFile.close()
+		self.rightButton = QPushButton("🠪")
+		font = self.rightButton.font()
+		font.setPointSize(25)
+		self.rightButton.setFont(font)
+		scrollButtonLayout.addWidget(self.rightButton)
+		self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
-        return calculations
+		self.skeletonLabels = {}
 
-    def ToggleOverlay(self, currSkeletonKey:str) -> None:
-        imageFileName = self.currentFileList[self.currentIndex]
-        calculations = self.GetCurrentCalculations()
-        
-        if not currSkeletonKey in self.currentSkeletonsOverlayed:
-            self.currentSkeletonsOverlayed.add(currSkeletonKey)
-            
-            originalImage = Image.open(os.path.join(self.defaultInputDirectory, imageFileName))
-            originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
+		for currSkeletonKey in self.skeletonMap:
+			skeletonLabel = ClickableLabel()
+			skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
+			self.skeletonLabels[currSkeletonKey] = skeletonLabel
 
-            maxValue = np.max(originalImageArray)
-            minValue = np.min(originalImageArray)
-            originalImageArray -= minValue
-            maxValue -= minValue
-            originalImageArray /= maxValue
+			currLayout = QVBoxLayout()
+			self.skeletonLayouts[currSkeletonKey].addLayout(currLayout)
 
-            originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageSize, False)
+			currLayout.addWidget(skeletonLabel)
 
-            overlayedPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize,
-                                                   line_width=1, line_color=QColor("red"), pixmap=originalImagePixmap)
+			skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
 
-            self.skeletonLabels[currSkeletonKey].setPixmap(overlayedPixmap)
+			buttonLayout = QHBoxLayout()
+			currLayout.addLayout(buttonLayout)
 
-        else:
-            self.currentSkeletonsOverlayed.remove(currSkeletonKey)
+			previewButton = QPushButton("Preview Steps")
+			buttonLayout.addWidget(previewButton)
 
-            skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
+			previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
 
-            self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
+			overlayButton = QPushButton("Toggle Overlay on Original")
+			buttonLayout.addWidget(overlayButton)
 
-    def LoadPreview(self, currSkeletonKey:str) -> None:
-        currImageName = self.currentFileList[self.currentIndex]
+			overlayButton.clicked.connect(partial(self.ToggleOverlay, currSkeletonKey))
 
-        currImagePath = os.path.join(self.defaultInputDirectory, currImageName)
+		self.LoadNewSample(list(self.sampleToFiles.keys())[0])
 
-        self.TriggerPreview.emit(currImagePath, currSkeletonKey)
+	def GetCurrentCalculationsFile(self) -> str:
+		imageFileName = self.currentFileList[self.currentIndex]
 
-    def LoadNewSample(self, value:str) -> None:
-        self.currentFileList = self.sampleToFiles[value]
+		#load calculation file
+		calculationFileName = os.path.splitext(imageFileName)[0] + "_calculations.json"
+		calculationFilePath = os.path.join(self.defaultOutputDirectory, "Calculations", calculationFileName)
+	
+		return calculationFilePath
 
-        self.currentSample = value
+	def GetCurrentCalculations(self) -> dict:
+		calculationFilePath = self.GetCurrentCalculationsFile()
 
-        self.LoadImageIntoUI(0)
+		calculationFile = open(calculationFilePath, "r")
+		calculations = json.load(calculationFile)
+		calculationFile.close()
 
-    def GoIntoSkeletonView(self, currSkeletonKey:str) -> None:
-        self.ClickedOnSkeleton.emit(self.currentFileList[self.currentIndex], currSkeletonKey)
+		return calculations
 
-    def LoadImageIntoUI(self, index:int) -> None:
-        self.currentSkeletonsOverlayed = set()
-        
-        self.currentIndex = index
+	def ToggleOverlay(self, currSkeletonKey:str) -> None:
+		imageFileName = self.currentFileList[self.currentIndex]
+		calculations = self.GetCurrentCalculations()
+		
+		if not currSkeletonKey in self.currentSkeletonsOverlayed:
+			self.currentSkeletonsOverlayed.add(currSkeletonKey)
+			
+			originalImage = Image.open(os.path.join(self.defaultInputDirectory, imageFileName))
+			originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
 
-        imageFileName = self.currentFileList[index]
+			maxValue = np.max(originalImageArray)
+			minValue = np.min(originalImageArray)
+			originalImageArray -= minValue
+			maxValue -= minValue
+			originalImageArray /= maxValue
 
-        calculations = self.GetCurrentCalculations()
+			originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageSize, False)
 
-        self.timestampLabel.setText(f"Timestamp: {calculations[timestampKey]}")
+			overlayedPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize,
+												   line_width=1, line_color=QColor("red"), pixmap=originalImagePixmap)
 
-        originalImage = Image.open(os.path.join(self.defaultInputDirectory, imageFileName))
-        originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
+			self.skeletonLabels[currSkeletonKey].setPixmap(overlayedPixmap)
 
-        maxValue = np.max(originalImageArray)
-        minValue = np.min(originalImageArray)
-        originalImageArray -= minValue
-        maxValue -= minValue
-        originalImageArray /= maxValue
+		else:
+			self.currentSkeletonsOverlayed.remove(currSkeletonKey)
 
-        originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageSize, False)
+			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
-        self.originalImageLabel.setPixmap(originalImagePixmap)
+			self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
 
-        for currSkeletonKey in self.skeletonLabels:
-            skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
+	def LoadPreview(self, currSkeletonKey:str) -> None:
+		currImageName = self.currentFileList[self.currentIndex]
 
-            self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
+		currImagePath = os.path.join(self.defaultInputDirectory, currImageName)
 
-        self.LoadedNewImage.emit(calculations)
+		self.TriggerPreview.emit(currImagePath, currSkeletonKey)
 
-    def SetParameterValues(self, values:dict) -> None:
-        values = copy.deepcopy(values)
+	def LoadNewSample(self, value:str) -> None:
+		self.currentFileList = self.sampleToFiles[value]
 
-        for currSkeletonKey in values:
-            for parameterKey in values[currSkeletonKey]:
-                slider:SliderLineEditCombo = self.sliderMap[currSkeletonKey][parameterKey]
-                value = values[currSkeletonKey][parameterKey]
-                slider.UpdateValue(value)
+		self.currentSample = value
 
-    def ChangeIndex(self, direction:int) -> None:
-        if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
-            return
-        
-        self.LoadImageIntoUI(self.currentIndex + direction)
+		self.LoadImageIntoUI(0)
 
-        if self.currentIndex == 0:
-            self.leftButton.setEnabled(False)
-        elif not self.leftButton.isEnabled():
-            self.leftButton.setEnabled(True)
+	def GoIntoSkeletonView(self, currSkeletonKey:str) -> None:
+		self.ClickedOnSkeleton.emit(self.currentFileList[self.currentIndex], currSkeletonKey)
 
-        if self.currentIndex == len(self.currentFileList) - 1:
-            self.rightButton.setEnabled(False)
-        elif not self.rightButton.isEnabled():
-            self.rightButton.setEnabled(True)
+	def LoadImageIntoUI(self, index:int) -> None:
+		self.currentSkeletonsOverlayed = set()
+		
+		self.currentIndex = index
 
-    def SelectDirectoryAndSetLineEdit(self, lineEdit:QLineEdit) -> None:
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+		imageFileName = self.currentFileList[index]
 
-        if directory:
-            directory = directory.replace("\\", "/")
-            lineEdit.setText(directory)
+		calculations = self.GetCurrentCalculations()
 
-    def LoadPreviousResults(self) -> None:
-        if not os.path.exists(self.defaultInputDirectory):
-            return
-        
-        if not os.path.exists(self.defaultOutputDirectory):
-            return
-        
-        if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)) * len(self.skeletonMap) + 1:
-            return
-            
-        self.GetSamples(self.defaultInputDirectory)
+		self.timestampLabel.setText(f"Timestamp: {calculations[timestampKey]}")
 
-        self.AddSkeletonUI()
+		originalImage = Image.open(os.path.join(self.defaultInputDirectory, imageFileName))
+		originalImageArray = np.asarray(originalImage, dtype=np.float64).copy()
 
-    def CreateInitializationSettings(self) -> None:
-        self.defaultInputDirectory = self.defaultInputDirectory.replace("/", "\\")
-        self.defaultOutputDirectory = self.defaultOutputDirectory.replace("/", "\\")
-        
-        initializationSettings = {
-            "defaultInputDirectory": self.defaultInputDirectory,
-            "defaultOutputDirectory": self.defaultOutputDirectory
-        }
+		maxValue = np.max(originalImageArray)
+		minValue = np.min(originalImageArray)
+		originalImageArray -= minValue
+		maxValue -= minValue
+		originalImageArray /= maxValue
 
-        initFile = open(self.initSettingsFilePath, "w")
-        json.dump(initializationSettings, initFile, indent=4)
-        initFile.close()
+		originalImagePixmap = ArrayToPixmap(originalImageArray, self.imageSize, False)
 
-    def GetSamples(self, inputDirectory:str) -> None:
-        fileNames = os.listdir(inputDirectory)
-        
-        self.sampleToFiles = {}
+		self.originalImageLabel.setPixmap(originalImagePixmap)
 
-        for fileName in fileNames:
-            fileNameParts = os.path.splitext(fileName)[0].split("_")
-            del fileNameParts[-1]
+		for currSkeletonKey in self.skeletonLabels:
+			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
-            sampleName = "_".join(fileNameParts)
+			self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
 
-            if sampleName not in self.sampleToFiles:
-                self.sampleToFiles[sampleName] = [fileName]
-            else:
-                self.sampleToFiles[sampleName].append(fileName)
+		self.LoadedNewImage.emit(calculations)
 
-    def LoadInitializationSettings(self):
-        initFile = open(self.initSettingsFilePath, "r")
-        initSettings = json.load(initFile)
-        initFile.close()
+	def SetParameterValues(self, values:dict) -> None:
+		values = copy.deepcopy(values)
 
-        self.defaultInputDirectory = initSettings["defaultInputDirectory"]
-        self.defaultOutputDirectory = initSettings["defaultOutputDirectory"]
+		for currSkeletonKey in values:
+			for parameterKey in values[currSkeletonKey]:
+				slider:SliderLineEditCombo = self.sliderMap[currSkeletonKey][parameterKey]
+				value = values[currSkeletonKey][parameterKey]
+				slider.UpdateValue(value)
+
+	def ChangeIndex(self, direction:int) -> None:
+		if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
+			return
+		
+		self.LoadImageIntoUI(self.currentIndex + direction)
+
+		if self.currentIndex == 0:
+			self.leftButton.setEnabled(False)
+		elif not self.leftButton.isEnabled():
+			self.leftButton.setEnabled(True)
+
+		if self.currentIndex == len(self.currentFileList) - 1:
+			self.rightButton.setEnabled(False)
+		elif not self.rightButton.isEnabled():
+			self.rightButton.setEnabled(True)
+
+	def SelectDirectoryAndSetLineEdit(self, lineEdit:QLineEdit) -> None:
+		directory = QFileDialog.getExistingDirectory(self, "Select Directory")
+
+		if directory:
+			directory = directory.replace("\\", "/")
+			lineEdit.setText(directory)
+
+	def LoadPreviousResults(self) -> None:
+		if not os.path.exists(self.defaultInputDirectory):
+			return
+		
+		if not os.path.exists(self.defaultOutputDirectory):
+			return
+		
+		if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)) * len(self.skeletonMap) + 1:
+			return
+			
+		self.GetSamples(self.defaultInputDirectory)
+
+		self.AddSkeletonUI()
+
+	def CreateInitializationSettings(self) -> None:
+		self.defaultInputDirectory = self.defaultInputDirectory.replace("/", "\\")
+		self.defaultOutputDirectory = self.defaultOutputDirectory.replace("/", "\\")
+		
+		initializationSettings = {
+			"defaultInputDirectory": self.defaultInputDirectory,
+			"defaultOutputDirectory": self.defaultOutputDirectory
+		}
+
+		initFile = open(self.initSettingsFilePath, "w")
+		json.dump(initializationSettings, initFile, indent=4)
+		initFile.close()
+
+	def GetSamples(self, inputDirectory:str) -> None:
+		fileNames = os.listdir(inputDirectory)
+		
+		self.sampleToFiles = {}
+
+		for fileName in fileNames:
+			fileNameParts = os.path.splitext(fileName)[0].split("_")
+			del fileNameParts[-1]
+
+			sampleName = "_".join(fileNameParts)
+
+			if sampleName not in self.sampleToFiles:
+				self.sampleToFiles[sampleName] = [fileName]
+			else:
+				self.sampleToFiles[sampleName].append(fileName)
+
+	def LoadInitializationSettings(self):
+		initFile = open(self.initSettingsFilePath, "r")
+		initSettings = json.load(initFile)
+		initFile.close()
+
+		self.defaultInputDirectory = initSettings["defaultInputDirectory"]
+		self.defaultOutputDirectory = initSettings["defaultOutputDirectory"]

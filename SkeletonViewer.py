@@ -13,6 +13,8 @@ from CustomTextEdit import CustomTextEdit
 
 class SkeletonViewer(QWidget):
     BackButtonPressed = Signal()
+    #line index, line comments, cluster index, cluster comments
+    CommentsChanged = Signal(int, str, int, str)
 
     def __init__(self):
         super().__init__()
@@ -88,7 +90,7 @@ class SkeletonViewer(QWidget):
         statsLayout.addWidget(self.selectedLineLabel)
 
         self.selectedLineTextbox = CustomTextEdit()
-        self.selectedLineTextbox.EditingFinished.connect(self.CommentsChanged)
+        self.selectedLineTextbox.textChanged.connect(self.UpdateComments)
         self.selectedLineTextbox.setPlaceholderText("...")
         self.selectedLineTextbox.setReadOnly(True)
         statsLayout.addWidget(self.selectedLineTextbox)
@@ -97,12 +99,14 @@ class SkeletonViewer(QWidget):
         statsLayout.addWidget(self.selectedClusterLabel)
 
         self.selectedClusterTextbox = CustomTextEdit()
-        self.selectedClusterTextbox.EditingFinished.connect(self.CommentsChanged)
+        self.selectedClusterTextbox.textChanged.connect(self.UpdateComments)
         self.selectedClusterTextbox.setPlaceholderText("...")
         self.selectedClusterTextbox.setReadOnly(True)
         statsLayout.addWidget(self.selectedClusterTextbox)
 
         paddedLayout.addWidget(QWidget(), 1)
+
+        self.changingProgrammatically = False
 
     def BackToOverview(self) -> None:
         self.BackButtonPressed.emit()
@@ -112,26 +116,57 @@ class SkeletonViewer(QWidget):
 
     def ReadComments(self, lineIndex:int, clusterIndex:int) -> None:
         if lineIndex < 0 or clusterIndex < 0:
-            self.selectedLineTextbox.clear()
-            self.selectedClusterTextbox.clear()
+            self.changingProgrammatically = True
+            self.selectedLineTextbox.setText("")
+            self.selectedClusterTextbox.setText("")
+            self.changingProgrammatically = False
             
             self.selectedLineTextbox.setReadOnly(True)
             self.selectedClusterTextbox.setReadOnly(True)
 
-            self.selectedLineLabel = QLabel("Selected Line Comments (index N/A): ")
-            self.selectedClusterLabel = QLabel("Selected Cluster Comments (index N/A): ")
+            self.selectedLineLabel.setText("Selected Line Comments (index N/A):")
+            self.selectedClusterLabel.setText("Selected Cluster Comments (index N/A):")
             return
         
         self.selectedLineTextbox.setReadOnly(False)
         self.selectedClusterTextbox.setReadOnly(False)
 
-        self.selectedLineLabel.setText(f"Selected Line Comments (index {lineIndex}):")
-        self.selectedClusterLabel.setText(f"Selected Cluster Comments (index {clusterIndex}):")
+        newSelectedLineText = f"Selected Line Comments (index {lineIndex}):"
+        self.selectedLineLabel.setText(newSelectedLineText)
+        self.selectedLineLabel.repaint()
 
+        newSelectedClusterText = f"Selected Cluster Comments (index {clusterIndex}):"
+        self.selectedClusterLabel.setText(newSelectedClusterText)
+        self.selectedClusterLabel.repaint()
+
+        self.changingProgrammatically = True
         #read in comments
+        if str(lineIndex) in self.currentResults["lineComments"]:
+            self.selectedLineTextbox.setText(self.currentResults["lineComments"][str(lineIndex)])
+        else:
+            self.selectedLineTextbox.setText("")
 
-    def CommentsChanged(self) -> None:
-        pass
+        if str(clusterIndex) in self.currentResults["clusterComments"]:
+            temp = self.currentResults["clusterComments"][str(clusterIndex)]
+            self.selectedClusterTextbox.setText(temp)
+        else:
+            self.selectedClusterTextbox.setText("")
+        self.changingProgrammatically = False
+
+    def UpdateComments(self) -> None:
+        if self.changingProgrammatically:
+            return
+        
+        if self.skeletonLabel.selectedLineIndex is None or self.skeletonLabel.selectedClumpIndex is None:
+            return
+
+        self.currentResults["lineComments"][str(self.skeletonLabel.selectedLineIndex)] = self.selectedLineTextbox.toPlainText()
+        self.currentResults["clusterComments"][str(self.skeletonLabel.selectedClumpIndex)] = self.selectedClusterTextbox.toPlainText()
+
+        self.CommentsChanged.emit(self.skeletonLabel.selectedLineIndex,
+                                  self.selectedLineTextbox.toPlainText(),
+                                  self.skeletonLabel.selectedClumpIndex,
+                                  self.selectedClusterTextbox.toPlainText())
 
     def UpdateLengthLabels(self, lineLength:float, clumpLength:float, lineIndex:int, clumpIndex:int) -> None:
         if lineLength < 0 or clumpLength < 0:
