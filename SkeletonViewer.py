@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QApplication
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QApplication, QTextEdit
 from PySide6.QtGui import QPixmap, QColor, QResizeEvent
 from PySide6.QtCore import Qt, Signal
 
@@ -9,6 +9,7 @@ import numpy as np
 
 from HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionTypeKey, imageTypeKey, clusterTypeKey, lineTypeKey
 from InteractiveSkeletonPixmap import InteractiveSkeletonPixmap
+from CustomTextEdit import CustomTextEdit
 
 class SkeletonViewer(QWidget):
     BackButtonPressed = Signal()
@@ -62,7 +63,8 @@ class SkeletonViewer(QWidget):
         imageLayout.addWidget(self.origImageLabel)
 
         self.skeletonLabel = InteractiveSkeletonPixmap(self.imageResolution)
-        self.skeletonLabel.PolylineHighlighted.connect(self.UpdateLengthLabels)
+        self.skeletonLabel.UpdateLineComments.connect(self.ReadComments)
+        self.skeletonLabel.UpdateLineData.connect(self.UpdateLengthLabels)
         self.skeletonLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.skeletonLabel)
 
@@ -82,6 +84,24 @@ class SkeletonViewer(QWidget):
 
             statsLayout.addWidget(newLabel, 1)
 
+        self.selectedLineLabel = QLabel("Selected Line Comments (index N/A): ")
+        statsLayout.addWidget(self.selectedLineLabel)
+
+        self.selectedLineTextbox = CustomTextEdit()
+        self.selectedLineTextbox.EditingFinished.connect(self.CommentsChanged)
+        self.selectedLineTextbox.setPlaceholderText("...")
+        self.selectedLineTextbox.setReadOnly(True)
+        statsLayout.addWidget(self.selectedLineTextbox)
+
+        self.selectedClusterLabel = QLabel("Selected Cluster Comments (index N/A): ")
+        statsLayout.addWidget(self.selectedClusterLabel)
+
+        self.selectedClusterTextbox = CustomTextEdit()
+        self.selectedClusterTextbox.EditingFinished.connect(self.CommentsChanged)
+        self.selectedClusterTextbox.setPlaceholderText("...")
+        self.selectedClusterTextbox.setReadOnly(True)
+        statsLayout.addWidget(self.selectedClusterTextbox)
+
         paddedLayout.addWidget(QWidget(), 1)
 
     def BackToOverview(self) -> None:
@@ -89,6 +109,29 @@ class SkeletonViewer(QWidget):
 
     def SetCurrentImage(self, result:dict) -> None:
         self.currentResults = result
+
+    def ReadComments(self, lineIndex:int, clusterIndex:int) -> None:
+        if lineIndex < 0 or clusterIndex < 0:
+            self.selectedLineTextbox.clear()
+            self.selectedClusterTextbox.clear()
+            
+            self.selectedLineTextbox.setReadOnly(True)
+            self.selectedClusterTextbox.setReadOnly(True)
+
+            self.selectedLineLabel = QLabel("Selected Line Comments (index N/A): ")
+            self.selectedClusterLabel = QLabel("Selected Cluster Comments (index N/A): ")
+            return
+        
+        self.selectedLineTextbox.setReadOnly(False)
+        self.selectedClusterTextbox.setReadOnly(False)
+
+        self.selectedLineLabel.setText(f"Selected Line Comments (index {lineIndex}):")
+        self.selectedClusterLabel.setText(f"Selected Cluster Comments (index {clusterIndex}):")
+
+        #read in comments
+
+    def CommentsChanged(self) -> None:
+        pass
 
     def UpdateLengthLabels(self, lineLength:float, clumpLength:float, lineIndex:int, clumpIndex:int) -> None:
         if lineLength < 0 or clumpLength < 0:

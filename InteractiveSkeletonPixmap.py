@@ -11,7 +11,9 @@ from HelperFunctions import draw_lines_on_pixmap, DistanceToLine
 
 class InteractiveSkeletonPixmap(QLabel):
     #line length, cluster length, line index, cluster index
-    PolylineHighlighted = Signal(float, float, int, int)
+    UpdateLineData = Signal(float, float, int, int)
+    #line index, cluster index
+    UpdateLineComments = Signal(int, int)
 
     def __init__(self, dimension:int=512, parent=None):
         super().__init__(parent)
@@ -77,21 +79,18 @@ class InteractiveSkeletonPixmap(QLabel):
         return math.sqrt(pow(point2[0] - point1[0], 2) + pow(point2[1] - point1[1], 2))
 
     def EmitLineData(self) -> None:
-        if self.hoveredClumpIndex is None or self.hoveredLineIndex is None:
-            return
-        
         selectedLineLength = 0.0
-        for i in range(len(self.lines[self.hoveredLineIndex]) - 1):
-            selectedLineLength += self.PointDistance(self.points[self.lines[self.hoveredLineIndex][i]], self.points[self.lines[self.hoveredLineIndex][i + 1]])
+        for i in range(len(self.lines[self.selectedLineIndex]) - 1):
+            selectedLineLength += self.PointDistance(self.points[self.lines[self.selectedLineIndex][i]], self.points[self.lines[self.selectedLineIndex][i + 1]])
 
         selectedClumpLength = 0.0
-        for i in range(len(self.clusters[self.hoveredClumpIndex])):
-            lineIndex = self.clusters[self.hoveredClumpIndex][i]
+        for i in range(len(self.clusters[self.selectedClumpIndex])):
+            lineIndex = self.clusters[self.selectedClumpIndex][i]
 
             for j in range(len(self.lines[lineIndex]) - 1):
                 selectedClumpLength += self.PointDistance(self.points[self.lines[lineIndex][j]], self.points[self.lines[lineIndex][j + 1]])
 
-        self.PolylineHighlighted.emit(selectedLineLength, selectedClumpLength, self.hoveredLineIndex, self.hoveredClumpIndex)
+        self.UpdateLineData.emit(selectedLineLength, selectedClumpLength, self.selectedLineIndex, self.selectedClumpIndex)
 
     def mouseMoveEvent(self, event:QMouseEvent):
         #x = event.x() / self.dimension
@@ -171,7 +170,6 @@ class InteractiveSkeletonPixmap(QLabel):
                 self.hoveredClumpIndex = self.LineToClump(closestLine)
 
                 self.UpdateLines()
-                self.EmitLineData()
         else:
             if self.hoveredLineIndex is not None:
                 self.hoveredLineIndex = None
@@ -179,16 +177,18 @@ class InteractiveSkeletonPixmap(QLabel):
 
                 self.UpdateLines()
 
-                self.PolylineHighlighted.emit(-1, -1, -1, -1)
-
     def mousePressEvent(self, event:QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             if self.hoveredLineIndex is not None:
                 self.selectedLineIndex = self.hoveredLineIndex
                 self.selectedClumpIndex = self.hoveredClumpIndex
+                self.UpdateLineComments.emit(self.selectedLineIndex, self.selectedClumpIndex)
+                self.EmitLineData()
             else:
                 self.selectedLineIndex = None
                 self.selectedClumpIndex = None
+                self.UpdateLineComments.emit(-1, -1)
+                self.UpdateLineData.emit(-1, -1, -1, -1)
 
             self.UpdateLines()
 
