@@ -24,10 +24,10 @@ lineTypeKey = "line"
 timestampKey = "timestamp"
 sampleKey = "sample"
 
-def randomNumPerImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
+def randomNumPerImage(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
     return random.uniform(0, 1)
 
-def randomNumPerCluster(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+def randomNumPerCluster(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
     result = []
     
     for _ in range(len(clusters)):
@@ -35,7 +35,7 @@ def randomNumPerCluster(skeleton:np.ndarray, lines:list[list[int]], points:list[
 
     return result
 
-def randomNumPerLine(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+def randomNumPerLine(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
     result = []
     
     for _ in range(len(lines)):
@@ -44,7 +44,7 @@ def randomNumPerLine(skeleton:np.ndarray, lines:list[list[int]], points:list[tup
     return result
 
 #fractal dimension
-def fractalDimension(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
+def fractalDimension(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> float:
     # Ensure the array is binary
     array = np.array(skeleton, dtype=bool)
 
@@ -75,20 +75,20 @@ def fractalDimension(skeleton:np.ndarray, lines:list[list[int]], points:list[tup
     return slope
 
 #number of lines in image
-def numLinesInImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
+def numLinesInImage(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
     return len(lines)
 
 #number of clusters in image
-def numClumpsInImage(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
+def numClumpsInImage(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> int:
     return len(clusters)
 
 #number of lines in each cluster
-def numLinesInClump(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[int]:
+def numLinesInClump(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[int]:
     result = [len(cluster) for cluster in clusters]
     return result
 
 #average length of lines in cluster
-def averageLengthOfLinesInClump(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+def averageLengthOfLinesInClump(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
     result = []
 
     for currentLines in clusters:
@@ -112,7 +112,7 @@ def averageLengthOfLinesInClump(skeleton:np.ndarray, lines:list[list[int]], poin
     return result
 
 #whether each line is straight
-def isLineStraight(skeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[bool]:
+def isLineStraight(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[bool]:
     requirementForStraight = 0.95
     
     result = []

@@ -21,11 +21,6 @@
                 "name": "Smooth Image",
                 "relatedParameters": ["gaussianBlurSigma"],
                 "function": "smoothBinaryArray"
-            },
-            {
-                "name": "Skeletonize",
-                "relatedParameters": [],
-                "function": "skeletonize"
             }
         ],
         "parameters": {
@@ -88,11 +83,6 @@
                 "name": "Remove Small White Islands",
                 "relatedParameters": ["minWhiteIslandSize"],
                 "function": "removeSmallWhiteIslands"
-            },
-            {
-                "name": "Skeletonize",
-                "relatedParameters": [],
-                "function": "skeletonize"
             }
         ],
         "parameters": {

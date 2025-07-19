@@ -229,10 +229,12 @@ def GenerateSkeleton(directory:str, fileName:str, parameters:dict, steps:list) -
     for step in steps:
         imgArray = stepFunctionMap[step["function"]](imgArray, parameters)
 
-    result = {}
-    result[skeletonKey] = np.asarray(imgArray, dtype=np.float64)
+    skeletonImg = stepFunctionMap["skeletonize"](imgArray, parameters)
 
-    lines, points, clusters = VectorizeSkeleton(imgArray)
+    result = {}
+    result[skeletonKey] = np.asarray(skeletonImg, dtype=np.float64)
+
+    lines, points, clusters = VectorizeSkeleton(skeletonImg)
 
     vectors = {
         linesKey: lines,
@@ -243,7 +245,7 @@ def GenerateSkeleton(directory:str, fileName:str, parameters:dict, steps:list) -
     result[vectorKey] = vectors
 
     for key in statFunctionMap:
-        result[key] = statFunctionMap[key][functionKey](imgArray, lines, points, clusters)
+        result[key] = statFunctionMap[key][functionKey](skeletonImg, imgArray, lines, points, clusters)
         
     print(f"Created skeleton for {fileName}")
 
