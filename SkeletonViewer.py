@@ -14,7 +14,7 @@ from CustomTextEdit import CustomTextEdit
 class SkeletonViewer(QWidget):
     BackButtonPressed = Signal()
     #line index, line comments, cluster index, cluster comments
-    CommentsChanged = Signal(int, str, int, str)
+    CommentsChanged = Signal(str, int, str, int, str)
 
     def __init__(self):
         super().__init__()
@@ -141,13 +141,13 @@ class SkeletonViewer(QWidget):
 
         self.changingProgrammatically = True
         #read in comments
-        if str(lineIndex) in self.currentResults["lineComments"]:
-            self.selectedLineTextbox.setText(self.currentResults["lineComments"][str(lineIndex)])
+        if str(lineIndex) in self.currentResults[self.currentSkeletonKey]["lineComments"]:
+            self.selectedLineTextbox.setText(self.currentResults[self.currentSkeletonKey]["lineComments"][str(lineIndex)])
         else:
             self.selectedLineTextbox.setText("")
 
-        if str(clusterIndex) in self.currentResults["clusterComments"]:
-            temp = self.currentResults["clusterComments"][str(clusterIndex)]
+        if str(clusterIndex) in self.currentResults[self.currentSkeletonKey]["clusterComments"]:
+            temp = self.currentResults[self.currentSkeletonKey]["clusterComments"][str(clusterIndex)]
             self.selectedClusterTextbox.setText(temp)
         else:
             self.selectedClusterTextbox.setText("")
@@ -160,10 +160,11 @@ class SkeletonViewer(QWidget):
         if self.skeletonLabel.selectedLineIndex is None or self.skeletonLabel.selectedClumpIndex is None:
             return
 
-        self.currentResults["lineComments"][str(self.skeletonLabel.selectedLineIndex)] = self.selectedLineTextbox.toPlainText()
-        self.currentResults["clusterComments"][str(self.skeletonLabel.selectedClumpIndex)] = self.selectedClusterTextbox.toPlainText()
+        self.currentResults[self.currentSkeletonKey]["lineComments"][str(self.skeletonLabel.selectedLineIndex)] = self.selectedLineTextbox.toPlainText()
+        self.currentResults[self.currentSkeletonKey]["clusterComments"][str(self.skeletonLabel.selectedClumpIndex)] = self.selectedClusterTextbox.toPlainText()
 
-        self.CommentsChanged.emit(self.skeletonLabel.selectedLineIndex,
+        self.CommentsChanged.emit(self.currentSkeletonKey,
+                                  self.skeletonLabel.selectedLineIndex,
                                   self.selectedLineTextbox.toPlainText(),
                                   self.skeletonLabel.selectedClumpIndex,
                                   self.selectedClusterTextbox.toPlainText())

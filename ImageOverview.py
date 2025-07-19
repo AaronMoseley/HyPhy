@@ -16,6 +16,7 @@ from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
 from CreateSkeleton import GenerateSkeleton
+from CSVCreator import GenerateCSVs
 import copy
 
 class ImageOverview(QWidget):
@@ -207,21 +208,23 @@ class ImageOverview(QWidget):
 
 			skeletonResult[skeletonKey] = os.path.join(self.defaultOutputDirectory, newFileName)
 
+			skeletonResult["lineComments"] = {}
+			skeletonResult["clusterComments"] = {}
+
 			jsonResult[currSkeletonKey] = skeletonResult
 
-		jsonResult["lineComments"] = {}
-		jsonResult["clusterComments"] = {}
+		GenerateCSVs(jsonResult, baseFileName)
 
 		jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
 		jsonFile = open(jsonFilePath, "w")
 		json.dump(jsonResult, jsonFile, indent=4)
 		jsonFile.close()
 
-	def UpdateComments(self, lineIndex:int, lineComments:str, clusterIndex:int, clusterComments:str) -> None:
+	def UpdateComments(self, currSkeletonKey:str, lineIndex:int, lineComments:str, clusterIndex:int, clusterComments:str) -> None:
 		calculations = self.GetCurrentCalculations()
 
-		calculations["lineComments"][str(lineIndex)] = lineComments
-		calculations["clusterComments"][str(clusterIndex)] = clusterComments
+		calculations[currSkeletonKey]["lineComments"][str(lineIndex)] = lineComments
+		calculations[currSkeletonKey]["clusterComments"][str(clusterIndex)] = clusterComments
 
 		calculationsFilePath = self.GetCurrentCalculationsFile()
 
