@@ -52,6 +52,7 @@ Alternatively, if you need to debug the program, you can open this repo as a fol
 
 * You can now select lines and line clusters in the Skeleton Viewer and add comments about them on the right side of the screen. These comments are automatically saved in JSON files in the Calculations directory and can be viewed in future sessions.
 * In addition to JSON files, CSV files are generated for each input image. A CSV file is generated for the entire image that contains information on the original image, the sample, timestamp, and file paths for the skeletons. CSVs are also generated for each skeleton type that provide the definition of points, line segments, clusters, and metadata. These CSV files are all placed in a directory specific to an individual input image.
+* The metadata functions have been updated to take the image immediately prior to skeletonization as a parameter. This is useful for calculations where you need access to an image of the structure itself, like calculating line width. Because of this, skeletonization has been added to the end of every pipeline by default, so that step doesn't need to be added in SkeletonMap.json.
 
 ## License
 
