@@ -37,6 +37,11 @@ You must already have an environment set up to use this project. This is a requi
    ```sh
    pip install requirements.txt
    ```
+## Recent Updates
+
+* You can now select lines and line clusters in the Skeleton Viewer and add comments about them on the right side of the screen. These comments are automatically saved in JSON files in the Calculations directory and can be viewed in future sessions.
+* In addition to JSON files, CSV files are generated for each input image. A CSV file is generated for the entire image that contains information on the original image, the sample, timestamp, and file paths for the skeletons. CSVs are also generated for each skeleton type that provide the definition of points, line segments, clusters, and metadata. These CSV files are all placed in a directory specific to an individual input image.
+
 ## License
 
 Distributed under the MIT License. See [MIT License](https://opensource.org/licenses/MIT) for more information.
