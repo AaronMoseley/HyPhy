@@ -213,7 +213,7 @@ class ImageOverview(QWidget):
 
 			jsonResult[currSkeletonKey] = skeletonResult
 
-		GenerateCSVs(jsonResult, baseFileName)
+		GenerateCSVs(jsonResult, baseFileName, self.defaultOutputDirectory)
 
 		jsonFilePath = os.path.join(self.outputDirLineEdit.text(), "Calculations", baseFileName + "_calculations.json")
 		jsonFile = open(jsonFilePath, "w")
