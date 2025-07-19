@@ -37,6 +37,17 @@ You must already have an environment set up to use this project. This is a requi
    ```sh
    pip install requirements.txt
    ```
+
+### Running the Program
+
+To use the program, make sure you have Python and all the program dependencies installed, then run the following command in your shell/command prompt.
+
+```sh
+RunProgram.bat
+```
+
+Alternatively, if you need to debug the program, you can open this repo as a folder in VSCode and then run it using the "Main Application" configuration in the "Run and Debug" menu.
+   
 ## Recent Updates
 
 * You can now select lines and line clusters in the Skeleton Viewer and add comments about them on the right side of the screen. These comments are automatically saved in JSON files in the Calculations directory and can be viewed in future sessions.
