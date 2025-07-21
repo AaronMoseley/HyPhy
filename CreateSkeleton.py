@@ -13,33 +13,6 @@ from VectorizeSkeleton import VectorizeSkeleton
 
 from HelperFunctions import skeletonKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionKey
 
-def top_hat(image:np.ndarray) -> np.ndarray:
-    footprint = morphology.disk(1)
-    res = morphology.white_tophat(image, footprint)
-
-    return res
-
-def remove_noisy_islands(binary_array, max_perimeter_area_ratio=0.5):
-    # Label connected components
-    labeled_array, num_features = label(binary_array)
-    
-    # Output image
-    cleaned = np.zeros_like(binary_array)
-
-    # Analyze each region
-    for region in regionprops(labeled_array):
-        area = region.area
-        perimeter = region.perimeter
-        if area == 0:
-            continue
-
-        ratio = perimeter / area
-        if ratio <= max_perimeter_area_ratio:
-            # Keep only coherent regions
-            cleaned[labeled_array == region.label] = 1
-
-    return cleaned
-
 def count_black_neighbors(binary_array, x, y):
     neighbors = binary_array[x-1:x+2, y-1:y+2]
     return 8 - np.sum(neighbors, dtype=np.int64)  # count black (0) pixels
