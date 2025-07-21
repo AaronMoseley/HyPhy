@@ -7,6 +7,8 @@ import numpy as np
 import cv2
 from scipy.stats import linregress
 import math
+from collections import deque
+from PIL import Image
 
 skeletonKey = "skeleton"
 originalImageKey = "originalImage"
@@ -109,6 +111,108 @@ def averageLengthOfLinesInClump(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarra
 
         result.append(averageLength)
 
+    return result
+
+def draw_line(startPosition:tuple[float, float], direction:tuple[float, float], dimension:tuple[int, int]) -> np.ndarray:
+    result = np.zeros(dimension)
+
+    cols, rows = dimension
+    x0 = int(cols * startPosition[0])
+    y0 = int(rows * startPosition[1])
+    dx, dy = direction
+
+    norm = (dx**2 + dy**2)**0.5
+    if norm == 0:
+        return result  # No direction
+    dx /= norm
+    dy /= norm
+
+    def draw_one_direction(x, y, dx, dy):
+        while 0 <= int(round(y)) < rows and 0 <= int(round(x)) < cols:
+            result[int(round(y)), int(round(x))] = 1
+            x += dx
+            y += dy
+
+    # Draw in both directions
+    draw_one_direction(x0, y0, dx, dy)       # Forward
+    draw_one_direction(x0, y0, -dx, -dy)     # Backward
+
+    return result
+
+def bfs_count_connected_pixels(grid: np.ndarray, start_row: int, start_col: int) -> int:
+    if grid[start_row, start_col] != 1.0:
+        return 0
+
+    rows, cols = grid.shape
+    visited = np.zeros_like(grid, dtype=bool)
+    queue = deque()
+    queue.append((start_row, start_col))
+    visited[start_row, start_col] = True
+    count = 1
+
+    # Define 8 directions (including diagonals)
+    directions = [(-1, -1), (-1, 0), (-1, 1),
+                  ( 0, -1),          ( 0, 1),
+                  ( 1, -1), ( 1, 0), ( 1, 1)]
+
+    while queue:
+        r, c = queue.popleft()
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            if (0 <= nr < rows and 0 <= nc < cols and
+                not visited[nr, nc] and grid[nr, nc] == 1.0):
+                visited[nr, nc] = True
+                queue.append((nr, nc))
+                count += 1
+
+    return count
+
+def getLineWidth(thresholdedImage:np.ndarray, direction:tuple[float, float], startingPoint:tuple[float, float]) -> float:
+    #draw line along direction
+    lineDrawn = draw_line(startingPoint, direction, thresholdedImage.shape)
+
+    #AND thresholded image and the line
+    andImage = np.logical_and(thresholdedImage > 0.5, lineDrawn > 0.5).astype(np.float64)
+
+    #BFS to get the number of white pixels connected to starting point
+    width = bfs_count_connected_pixels(andImage, int(startingPoint[1] * thresholdedImage.shape[1]), int(startingPoint[0] * thresholdedImage.shape[0]))
+    
+    width /= thresholdedImage.shape[0]
+
+    return width
+
+def middleWidth(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:list[list[int]], points:list[tuple[float, float]], clusters:list[list[int]]) -> list[float]:
+    result = []
+    
+    #loop through each line
+    for line in lines:
+        if len(line) < 2:
+            result.append(0.0)
+
+        #get center point of line
+        numPointsInLine = len(line)
+        centerPointIndex = line[numPointsInLine // 2]
+        centerPoint = points[centerPointIndex]
+        centerPoint = (centerPoint[0], 1 - centerPoint[1])
+
+        lastPointIndex = line[(numPointsInLine // 2) - 1]
+        lastPoint = points[lastPointIndex]
+        lastPoint = (lastPoint[0], 1 - lastPoint[1])
+
+        #get direction of line
+        direction = (centerPoint[0] - lastPoint[0], centerPoint[1] - lastPoint[1])
+        magnitude = math.sqrt(math.pow(direction[0], 2) + math.pow(direction[1], 2))
+        direction = (direction[0] / magnitude, direction[1] / magnitude)
+
+        #get orthogonal direction to line
+        orthogonalDirection = (direction[1], -direction[0])
+
+        #width function
+        currentWidth = getLineWidth(imgBeforeSkeleton, orthogonalDirection, centerPoint)
+
+        #add to result
+        result.append(currentWidth)
+    
     return result
 
 #whether each line is straight
@@ -325,6 +429,10 @@ statFunctionMap = {
     },
     "isLineStraight": {
         functionKey: isLineStraight,
+        functionTypeKey: lineTypeKey
+    },
+    "centerLineWidth": {
+        functionKey:middleWidth,
         functionTypeKey: lineTypeKey
     }
 }
