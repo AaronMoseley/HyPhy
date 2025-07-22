@@ -57,9 +57,7 @@ class MainApplication(QWidget):
 
         self.overview.LoadPreviousResults()
 
-        #centralWidget = QWidget()
-        self.primaryLayout = QStackedLayout(self)
-        #self.setCentralWidget(centralWidget)    
+        self.primaryLayout = QStackedLayout(self)\
 
         self.primaryLayout.addWidget(self.overview)
         self.primaryLayout.addWidget(self.skeletonViewer)
