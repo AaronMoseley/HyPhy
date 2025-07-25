@@ -406,6 +406,7 @@ def DistanceToLine(P, A, B):
     # Return distance from P to the closest point
     return np.linalg.norm(P - closest_point)
 
+#calculates metadata about each skeleton
 statFunctionMap = {
     "fractalDimension": {
         functionKey: fractalDimension,
@@ -435,4 +436,39 @@ statFunctionMap = {
         functionKey:middleWidth,
         functionTypeKey: lineTypeKey
     }
+}
+
+def TupleDistance(point1:tuple[float, float], point2:tuple[float, float]) -> float:
+    return math.sqrt(math.pow(point2[0] - point1[0], 2) + math.pow(point2[1] - point1[1], 2))
+
+def AvgDistanceToClosestPoint(skeleton1:tuple[list[list[int]], list[tuple[float, float]]], skeleton2:tuple[list[list[int]], list[tuple[float, float]]]) -> float:
+    totalDistance = 0.0
+    
+    for point1 in skeleton1[1]:
+        minDistance = float("inf")
+
+        for point2 in skeleton2[1]:
+            minDistance = min(minDistance, TupleDistance(point1, point2))
+
+        totalDistance += minDistance
+
+    return totalDistance / len(skeleton1[1])
+
+def MaxDistanceToClosestPoint(skeleton1:tuple[list[list[int]], list[tuple[float, float]]], skeleton2:tuple[list[list[int]], list[tuple[float, float]]]) -> float:
+    maxDistance = 0.0
+    
+    for point1 in skeleton1[1]:
+        minDistance = float("inf")
+
+        for point2 in skeleton2[1]:
+            minDistance = min(minDistance, TupleDistance(point1, point2))
+
+        maxDistance = max(maxDistance, minDistance)
+
+    return maxDistance
+
+#compares generated skeletons to uploaded skeletons
+comparisonFunctionMap = {
+    "averageDistanceToClosestPoint": AvgDistanceToClosestPoint,
+    "maxDistanceToClosestPoint": MaxDistanceToClosestPoint
 }

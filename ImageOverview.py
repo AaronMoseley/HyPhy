@@ -24,6 +24,7 @@ class ImageOverview(QWidget):
 	LoadedNewImage = Signal(dict)
 	ParametersChanged = Signal(dict, str)
 	TriggerPreview = Signal(str, str)
+	CompareToExternal = Signal(str)
 
 	def __init__(self, skeletonMap:dict) -> None:
 		super().__init__()
@@ -346,24 +347,32 @@ class ImageOverview(QWidget):
 			currLayout = QVBoxLayout()
 			self.skeletonLayouts[currSkeletonKey].addLayout(currLayout)
 
-			currLayout.addWidget(skeletonLabel)
+			currLayout.addWidget(skeletonLabel, alignment=Qt.AlignmentFlag.AlignCenter)
 
 			skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
 
 			buttonLayout = QHBoxLayout()
 			currLayout.addLayout(buttonLayout)
 
-			previewButton = QPushButton("Preview Steps")
+			previewButton = QPushButton(" Preview Steps ")
 			buttonLayout.addWidget(previewButton)
 
 			previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
 
-			overlayButton = QPushButton("Toggle Overlay on Original")
+			overlayButton = QPushButton(" Toggle Overlay on Original ")
 			buttonLayout.addWidget(overlayButton)
 
 			overlayButton.clicked.connect(partial(self.ToggleOverlay, currSkeletonKey))
 
+			compareButton = QPushButton(" Compare to External Skeleton ")
+			buttonLayout.addWidget(compareButton)
+
+			compareButton.clicked.connect(partial(self.CompareToExternalSkeleton, currSkeletonKey))
+
 		self.LoadNewSample(list(self.sampleToFiles.keys())[0])
+
+	def CompareToExternalSkeleton(self, currSkeletonKey:str) -> None:
+		self.CompareToExternal.emit(currSkeletonKey)
 
 	def GetCurrentCalculationsFile(self) -> str:
 		imageFileName = self.currentFileList[self.currentIndex]

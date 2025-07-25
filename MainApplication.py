@@ -22,6 +22,7 @@ from PySide6.QtGui import QResizeEvent
 from ImageOverview import ImageOverview
 from SkeletonViewer import SkeletonViewer
 from PreviewWindow import PreviewWindow
+from ComparisonWindow import ComparisonWindow
 
 import json
 
@@ -45,6 +46,7 @@ class MainApplication(QWidget):
         self.overview.ClickedOnSkeleton.connect(self.GoIntoViewer)
         self.overview.TriggerPreview.connect(self.GoIntoPreview)
         self.overview.ParametersChanged.connect(self.RetrieveParameterValues)
+        self.overview.CompareToExternal.connect(self.GoIntoComparison)
         
         self.skeletonViewer = SkeletonViewer()
         self.skeletonViewer.BackButtonPressed.connect(self.BackToOverview)
@@ -55,13 +57,17 @@ class MainApplication(QWidget):
         self.previewWindow.BackToOverview.connect(self.BackToOverview)
         self.previewWindow.ParametersChanged.connect(self.RetrieveParameterValues)
 
+        self.comparisonWindow = ComparisonWindow()
+        self.comparisonWindow.BackToOverview.connect(self.BackToOverview)
+
         self.overview.LoadPreviousResults()
 
-        self.primaryLayout = QStackedLayout(self)\
+        self.primaryLayout = QStackedLayout(self)
 
         self.primaryLayout.addWidget(self.overview)
         self.primaryLayout.addWidget(self.skeletonViewer)
         self.primaryLayout.addWidget(self.previewWindow)
+        self.primaryLayout.addWidget(self.comparisonWindow)
         self.primaryLayout.setCurrentWidget(self.overview)
 
         self.GetInitialParameterValues()
@@ -87,6 +93,10 @@ class MainApplication(QWidget):
     def GoIntoViewer(self, imageName:str, currSkeletonKey:str) -> None:
         self.skeletonViewer.SetImage(imageName, currSkeletonKey)
         self.primaryLayout.setCurrentWidget(self.skeletonViewer)
+
+    def GoIntoComparison(self, currSkeletonKey:str) -> None:
+        self.comparisonWindow.SetImage(self.overview.GetCurrentCalculations(), currSkeletonKey)
+        self.primaryLayout.setCurrentWidget(self.comparisonWindow)
 
     def BackToOverview(self) -> None:
         self.overview.SetParameterValues(self.parameterValues)

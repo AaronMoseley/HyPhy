@@ -342,6 +342,7 @@ def GetClusters(lines) -> list[list[int]]:
 
     return clusters
 
+#lines, points, clusters
 def VectorizeSkeleton(skeleton:np.ndarray) -> tuple[list, list, list]:
     skeleton = np.asarray(skeleton, dtype=np.int64)
     
