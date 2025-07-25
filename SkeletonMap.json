@@ -1,6 +1,6 @@
 {
-    "matureHyphage": {
-        "name": "Mature Hyphage",
+    "sclerotiaPrimordia": {
+        "name": "Sclerotia Primordia",
         "steps": [
             {
                 "name": "Radial Threshold",
