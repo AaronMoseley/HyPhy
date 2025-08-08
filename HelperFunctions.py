@@ -65,6 +65,9 @@ def fractalDimension(skeleton:np.ndarray, imgBeforeSkeleton:np.ndarray, lines:li
                 if np.any(array[i:i+box_size, j:j+box_size]):
                     box_count += 1
         box_counts.append(box_count)
+        
+        if box_count == 0:
+            return 0.0
 
     # Convert to numpy arrays
     box_sizes = np.array(box_sizes)

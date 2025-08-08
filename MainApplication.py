@@ -90,11 +90,11 @@ class MainApplication(QWidget):
         for currSkeletonKey in self.skeletonPipelines:
             currEntry = {}
 
-            for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]):
+            for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
                 stepEntry = {}
 
                 for parameterName in self.pipelineSteps[stepName]["relatedParameters"]:
-                    stepEntry[parameterName] = self.stepParameters["default"]
+                    stepEntry[parameterName] = self.stepParameters[parameterName]["default"]
 
                 currEntry[f"{stepName}-{i}"] = stepEntry
 

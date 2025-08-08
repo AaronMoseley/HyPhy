@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QSlider, QLineEdit, QLab
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDoubleValidator
 
-from .SliderLineEditCombo import SliderLineEditCombo
+from SliderLineEditCombo import SliderLineEditCombo
 
 class SkeletonPipelineParameterSliders(QVBoxLayout):
     ValueChanged = Signal()
