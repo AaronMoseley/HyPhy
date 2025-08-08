@@ -24,7 +24,7 @@ from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
 class ImageOverview(QWidget):
 	ClickedOnSkeleton = Signal(str, str)
 	LoadedNewImage = Signal(dict)
-	ParametersChanged = Signal(dict, str)
+	ParametersChanged = Signal(list, str)
 	TriggerPreview = Signal(str, str)
 	CompareToExternal = Signal(str)
 
@@ -144,7 +144,9 @@ class ImageOverview(QWidget):
 			self.sliderMap[currSkeletonKey] = sliderLayout
 
 	def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
-		self.ParametersChanged.emit(self.sliderMap, currSkeletonKey)
+		parameterValues = self.sliderMap[currSkeletonKey].GetValues()
+
+		self.ParametersChanged.emit(parameterValues, currSkeletonKey)
 
 	def LoadOtherParameters(self, values:dict) -> None:
 		for currSkeletonKey in self.sliderMap:
@@ -458,13 +460,8 @@ class ImageOverview(QWidget):
 		self.LoadedNewImage.emit(calculations)
 
 	def SetParameterValues(self, values:dict) -> None:
-		values = copy.deepcopy(values)
-
-		for currSkeletonKey in values:
-			for parameterKey in values[currSkeletonKey]:
-				slider:SliderLineEditCombo = self.sliderMap[currSkeletonKey][parameterKey]
-				value = values[currSkeletonKey][parameterKey]
-				slider.UpdateValue(value)
+		for currSkeletonKey in self.sliderMap:
+			self.sliderMap[currSkeletonKey].UpdateValues(values[currSkeletonKey])
 
 	def ChangeIndex(self, direction:int) -> None:
 		if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):

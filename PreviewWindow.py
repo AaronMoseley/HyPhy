@@ -22,7 +22,7 @@ from CreateSkeleton import stepFunctionMap
 
 class PreviewWindow(QWidget):
 	BackToOverview = Signal()
-	ParametersChanged = Signal(dict, str)
+	ParametersChanged = Signal(list, str)
 
 	def __init__(self, skeletonPipelines:dict, pipelineSteps:dict, stepParameters:dict):
 		super().__init__()
@@ -168,7 +168,8 @@ class PreviewWindow(QWidget):
 		self.deleteItemsOfLayout(self.parameterLayout)
 
 		self.sliders = SkeletonPipelineParameterSliders(self.currentSkeletonKey, self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
-		self.sliders.UpdateValues(parameterValues)
+		self.sliders.ValueChanged.connect(self.TriggerParameterChanged)
+		self.sliders.UpdateValues(parameterValues[self.currentSkeletonKey])
 		self.parameterLayout.addLayout(self.sliders)
 
 	def LoadSkeletonStep(self) -> None:
