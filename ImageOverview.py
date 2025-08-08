@@ -19,6 +19,8 @@ from CreateSkeleton import GenerateSkeleton
 from CSVCreator import GenerateCSVs
 import copy
 
+from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
+
 class ImageOverview(QWidget):
 	ClickedOnSkeleton = Signal(str, str)
 	LoadedNewImage = Signal(dict)
@@ -26,10 +28,12 @@ class ImageOverview(QWidget):
 	TriggerPreview = Signal(str, str)
 	CompareToExternal = Signal(str)
 
-	def __init__(self, skeletonMap:dict) -> None:
+	def __init__(self, skeletonPipelines:dict, pipelineSteps:dict, stepParameters:dict) -> None:
 		super().__init__()
 
-		self.skeletonMap = skeletonMap
+		self.skeletonPipelines = skeletonPipelines
+		self.pipelineSteps = pipelineSteps
+		self.stepParameters = stepParameters
 
 		self.imageSize = 256
 
@@ -128,38 +132,23 @@ class ImageOverview(QWidget):
 		scrollableArea.setWidget(scrollContentWidget)
 		scrollLayout = QVBoxLayout(scrollContentWidget)
 
-		for currSkeletonKey in self.skeletonMap:
+		for currSkeletonKey in self.skeletonPipelines:
 			currSkeletonLayout = QHBoxLayout()
-			currLayout = QVBoxLayout()
-			currSkeletonLayout.addLayout(currLayout)
 			scrollLayout.addLayout(currSkeletonLayout)
 			self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
 
-			currLayout.addWidget(QLabel(f"{self.skeletonMap[currSkeletonKey]['name']}:"))
-			
-			currentResult = {}
+			sliderLayout = SkeletonPipelineParameterSliders(currSkeletonKey, self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
+			currSkeletonLayout.addLayout(sliderLayout)
 
-			for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
-				parameterInfo = self.skeletonMap[currSkeletonKey]["parameters"][parameterKey]
-
-				currentSlider = SliderLineEditCombo(parameterInfo["name"], defaultVal=parameterInfo["default"], 
-													min_val=parameterInfo["min"], max_val=parameterInfo["max"], decimals=parameterInfo["decimals"])
-				
-				currentSlider.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
-
-				currLayout.addLayout(currentSlider)
-
-				currentResult[parameterKey] = currentSlider
-
-			self.sliderMap[currSkeletonKey] = currentResult
+			sliderLayout.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
+			self.sliderMap[currSkeletonKey] = sliderLayout
 
 	def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
 		self.ParametersChanged.emit(self.sliderMap, currSkeletonKey)
 
 	def LoadOtherParameters(self, values:dict) -> None:
 		for currSkeletonKey in self.sliderMap:
-			for parameterKey in self.sliderMap[currSkeletonKey]:
-				self.sliderMap[currSkeletonKey][parameterKey].UpdateValue(values[currSkeletonKey][parameterKey])
+			self.sliderMap[currSkeletonKey].UpdateValues(values[currSkeletonKey])
 
 	def ReadDirectories(self) -> None:
 		inputDir = self.inputDirLineEdit.text()
@@ -191,13 +180,11 @@ class ImageOverview(QWidget):
 		jsonResult[sampleKey] = sample
 		
 		#get result from skeleton creator
-		for currSkeletonKey in self.skeletonMap:
+		for currSkeletonKey in self.skeletonPipelines:
 			#create parameters
-			parameters = {}
-			for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
-				parameters[parameterKey] = self.sliderMap[currSkeletonKey][parameterKey].value()
+			parameters = self.sliderMap[currSkeletonKey].GetValues()
 
-			skeletonResult = GenerateSkeleton(self.defaultInputDirectory, fileName, parameters, self.skeletonMap[currSkeletonKey]["steps"])
+			skeletonResult = GenerateSkeleton(self.defaultInputDirectory, fileName, parameters, self.skeletonPipelines[currSkeletonKey]["steps"], self.pipelineSteps)
 
 			newBaseFileName = baseFileName + "_" + currSkeletonKey
 			newFileName = newBaseFileName + extension
@@ -339,7 +326,7 @@ class ImageOverview(QWidget):
 
 		self.skeletonLabels = {}
 
-		for currSkeletonKey in self.skeletonMap:
+		for currSkeletonKey in self.skeletonPipelines:
 			skeletonLabel = ClickableLabel()
 			skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
 			self.skeletonLabels[currSkeletonKey] = skeletonLabel
@@ -509,7 +496,7 @@ class ImageOverview(QWidget):
 		if not os.path.exists(self.defaultOutputDirectory):
 			return
 		
-		if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)) * len(self.skeletonMap) + 1:
+		if len(os.listdir(self.defaultOutputDirectory)) < len(os.listdir(self.defaultInputDirectory)) * len(self.skeletonPipelines) + 1:
 			return
 			
 		self.GetSamples(self.defaultInputDirectory)

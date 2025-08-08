@@ -1,0 +1,26 @@
+{
+    "Radial Threshold": {
+        "relatedParameters": ["centerThreshold", "edgeThreshold"],
+        "function": "radialThreshold"
+    },
+    "Remove Small White Islands": {
+        "relatedParameters": ["minWhiteIslandSize"],
+        "function": "removeSmallWhiteIslands"
+    },
+    "Remove Noisy Islands": {
+        "relatedParameters": ["noiseTolerance"],
+        "function": "removeStructurallyNoisyIslands"
+    },
+    "Smooth Image": {
+        "relatedParameters": ["gaussianBlurSigma"],
+        "function": "smoothBinaryArray"
+    },
+    "Adjust Contrast": {
+        "relatedParameters": ["contrastAdjustment"],
+        "function": "adjustContrast"
+    },
+    "Edge Detection": {
+        "relatedParameters": ["gaussianBlurSigma", "maxThreshold", "minThreshold", "edgeNeighborRatio"],
+        "function": "edgeDetection"
+    }
+}

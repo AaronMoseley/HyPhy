@@ -38,11 +38,19 @@ class MainApplication(QWidget):
 
         self.setFixedSize(screen_size.width(), screen_size.height() * 0.9)
 
-        skeletonFile = open("SkeletonMap.json", "r")
-        self.skeletonMap = json.load(skeletonFile)
+        skeletonFile = open("SkeletonPipelines.json", "r")
+        self.skeletonPipelines = json.load(skeletonFile)
         skeletonFile.close()
 
-        self.overview = ImageOverview(self.skeletonMap)
+        stepsFile = open("PipelineSteps.json", "r")
+        self.pipelineSteps = json.load(stepsFile)
+        stepsFile.close()
+
+        parametersFile = open("StepParameters.json", "r")
+        self.stepParameters = json.load(parametersFile)
+        parametersFile.close()
+
+        self.overview = ImageOverview(self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
         self.overview.ClickedOnSkeleton.connect(self.GoIntoViewer)
         self.overview.TriggerPreview.connect(self.GoIntoPreview)
         self.overview.ParametersChanged.connect(self.RetrieveParameterValues)
@@ -53,7 +61,7 @@ class MainApplication(QWidget):
         self.overview.LoadedNewImage.connect(self.skeletonViewer.SetCurrentImage)
         self.skeletonViewer.CommentsChanged.connect(self.overview.UpdateComments)
 
-        self.previewWindow = PreviewWindow(self.skeletonMap)
+        self.previewWindow = PreviewWindow(self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
         self.previewWindow.BackToOverview.connect(self.BackToOverview)
         self.previewWindow.ParametersChanged.connect(self.RetrieveParameterValues)
 
@@ -72,17 +80,23 @@ class MainApplication(QWidget):
 
         self.GetInitialParameterValues()
 
-    def RetrieveParameterValues(self, sliderMap:dict, currSkeletonKey:str) -> None:
-        for parameterKey in sliderMap[currSkeletonKey]:
-            self.parameterValues[currSkeletonKey][parameterKey] = sliderMap[currSkeletonKey][parameterKey].value()
+    def RetrieveParameterValues(self, values:list, currSkeletonKey:str) -> None:
+        for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
+            for parameterName in values[i]:
+                self.parameterValues[currSkeletonKey][f"{stepName}-{i}"][parameterName] = values[i][parameterName]
 
     def GetInitialParameterValues(self) -> None:
         self.parameterValues = {}
-        for currSkeletonKey in self.skeletonMap:
+        for currSkeletonKey in self.skeletonPipelines:
             currEntry = {}
 
-            for parameterKey in self.skeletonMap[currSkeletonKey]["parameters"]:
-                currEntry[parameterKey] = self.skeletonMap[currSkeletonKey]["parameters"][parameterKey]["default"]
+            for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]):
+                stepEntry = {}
+
+                for parameterName in self.pipelineSteps[stepName]["relatedParameters"]:
+                    stepEntry[parameterName] = self.stepParameters["default"]
+
+                currEntry[f"{stepName}-{i}"] = stepEntry
 
             self.parameterValues[currSkeletonKey] = currEntry
 

@@ -1,0 +1,20 @@
+{
+    "sclerotiaPrimordia": {
+        "name": "Sclerotia Primordia",
+        "steps": [
+            "Radial Threshold", 
+            "Remove Small White Islands", 
+            "Remove Noisy Islands", 
+            "Smooth Image"
+        ]
+    },
+    "network": {
+        "name": "Fungal Network",
+        "steps": [
+            "Adjust Contrast",
+            "Edge Detection",
+            "Smooth Image",
+            "Remove Small White Islands"
+        ]
+    }
+}

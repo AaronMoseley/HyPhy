@@ -178,7 +178,7 @@ def threshold_and_proximity(image, edgeDetection, maxThreshold, minThreshold, di
 
     return result
 
-def GenerateSkeleton(directory:str, fileName:str, parameters:dict, steps:list) -> dict:
+def GenerateSkeleton(directory:str, fileName:str, parameters:list[dict], steps:list, pipelineSteps:dict) -> dict:
     if not fileName.endswith(".tif") and not fileName.endswith(".png"):
         return None
     
@@ -199,10 +199,12 @@ def GenerateSkeleton(directory:str, fileName:str, parameters:dict, steps:list) -
     originalImageArray /= maxValue
 
     #call all the functions
-    for step in steps:
-        imgArray = stepFunctionMap[step["function"]](imgArray, parameters)
+    for i, step in enumerate(steps):
+        stepFunctionKey = pipelineSteps[step]["function"]
 
-    skeletonImg = stepFunctionMap["skeletonize"](imgArray, parameters)
+        imgArray = stepFunctionMap[stepFunctionKey](imgArray, parameters[i])
+
+    skeletonImg = stepFunctionMap["skeletonize"](imgArray, {})
 
     result = {}
     result[skeletonKey] = np.asarray(skeletonImg, dtype=np.float64)

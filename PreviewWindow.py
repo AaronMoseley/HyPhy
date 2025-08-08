@@ -16,196 +16,188 @@ from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
 
+from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
+
 from CreateSkeleton import stepFunctionMap
 
 class PreviewWindow(QWidget):
-    BackToOverview = Signal()
-    ParametersChanged = Signal(dict, str)
+	BackToOverview = Signal()
+	ParametersChanged = Signal(dict, str)
 
-    def __init__(self, skeletonMap:dict):
-        super().__init__()
+	def __init__(self, skeletonPipelines:dict, pipelineSteps:dict, stepParameters:dict):
+		super().__init__()
 
-        self.skeletonMap = skeletonMap
+		self.skeletonPipelines = skeletonPipelines
+		self.pipelineSteps = pipelineSteps
+		self.stepParameters = stepParameters
 
-        self.imageResolution = 512
+		self.imageResolution = 512
 
-        self.currentStepIndex:int = 0
-        self.currentSkeletonKey:str = ""
+		self.currentStepIndex:int = 0
+		self.currentSkeletonKey:str = ""
 
-        self.originalImageArray:np.ndarray = None
+		self.originalImageArray:np.ndarray = None
 
-        self.sliders = {}
+		self.sliders = None
 
-        self.CreateUI()
+		self.CreateUI()
 
-    def CreateUI(self) -> None:
-        #overall, horizontal QBox
-        mainLayout = QHBoxLayout()
-        self.setLayout(mainLayout)
+	def CreateUI(self) -> None:
+		#overall, horizontal QBox
+		mainLayout = QHBoxLayout()
+		self.setLayout(mainLayout)
 
-        #left VQBox, contains image name and parameter sliders
-        leftLayout = QVBoxLayout()
-        mainLayout.addLayout(leftLayout)
+		#left VQBox, contains image name and parameter sliders
+		leftLayout = QVBoxLayout()
+		mainLayout.addLayout(leftLayout)
 
-        backButton = QPushButton("Back")
-        leftLayout.addWidget(backButton)
-        backButton.clicked.connect(self.BackToOverview.emit)
+		backButton = QPushButton("Back")
+		leftLayout.addWidget(backButton)
+		backButton.clicked.connect(self.BackToOverview.emit)
 
-        self.parameterLayout = QVBoxLayout()
-        leftLayout.addLayout(self.parameterLayout)
+		self.parameterLayout = QVBoxLayout()
+		leftLayout.addLayout(self.parameterLayout)
 
-        #right VQBox, contains name of step, related parameters, original image pixmap, skeleton pixmap, right/left buttons
-        rightLayout = QVBoxLayout()
-        mainLayout.addLayout(rightLayout)
+		#right VQBox, contains name of step, related parameters, original image pixmap, skeleton pixmap, right/left buttons
+		rightLayout = QVBoxLayout()
+		mainLayout.addLayout(rightLayout)
 
-        self.imageNameLabel = QLabel("")
-        rightLayout.addWidget(self.imageNameLabel)
+		self.imageNameLabel = QLabel("")
+		rightLayout.addWidget(self.imageNameLabel)
 
-        self.skeletonNameLabel = QLabel("")
+		self.skeletonNameLabel = QLabel("")
 
-        self.stepNameLabel = QLabel("")
-        rightLayout.addWidget(self.stepNameLabel)
+		self.stepNameLabel = QLabel("")
+		rightLayout.addWidget(self.stepNameLabel)
 
-        self.relevantParametersLabel = QLabel("")
-        rightLayout.addWidget(self.relevantParametersLabel)
+		self.relevantParametersLabel = QLabel("")
+		rightLayout.addWidget(self.relevantParametersLabel)
 
-        self.mainImageLabel = QLabel()
-        mainImagePixmap = QPixmap(self.imageResolution, self.imageResolution)
-        self.mainImageLabel.setPixmap(mainImagePixmap)
-        rightLayout.addWidget(self.mainImageLabel)
+		self.mainImageLabel = QLabel()
+		mainImagePixmap = QPixmap(self.imageResolution, self.imageResolution)
+		self.mainImageLabel.setPixmap(mainImagePixmap)
+		rightLayout.addWidget(self.mainImageLabel)
 
-        self.skeletonLabel = QLabel()
-        skeletonPixmap = QPixmap(self.imageResolution, self.imageResolution)
-        self.skeletonLabel.setPixmap(skeletonPixmap)
-        rightLayout.addWidget(self.skeletonLabel)
+		self.skeletonLabel = QLabel()
+		skeletonPixmap = QPixmap(self.imageResolution, self.imageResolution)
+		self.skeletonLabel.setPixmap(skeletonPixmap)
+		rightLayout.addWidget(self.skeletonLabel)
 
-        refreshButton = QPushButton("Refresh Step")
-        rightLayout.addWidget(refreshButton)
-        refreshButton.clicked.connect(self.LoadSkeletonStep)
+		refreshButton = QPushButton("Refresh Step")
+		rightLayout.addWidget(refreshButton)
+		refreshButton.clicked.connect(self.LoadSkeletonStep)
 
-        scrollButtonLayout = QHBoxLayout()
-        rightLayout.addLayout(scrollButtonLayout)
-        self.leftButton = QPushButton("🠨")
-        font = self.leftButton.font()
-        font.setPointSize(25)
-        self.leftButton.setFont(font)
-        scrollButtonLayout.addWidget(self.leftButton)
-        self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
+		scrollButtonLayout = QHBoxLayout()
+		rightLayout.addLayout(scrollButtonLayout)
+		self.leftButton = QPushButton("🠨")
+		font = self.leftButton.font()
+		font.setPointSize(25)
+		self.leftButton.setFont(font)
+		scrollButtonLayout.addWidget(self.leftButton)
+		self.leftButton.clicked.connect(partial(self.ChangeIndex, -1))
 
-        self.leftButton.setEnabled(False)
+		self.leftButton.setEnabled(False)
 
-        self.rightButton = QPushButton("🠪")
-        font = self.rightButton.font()
-        font.setPointSize(25)
-        self.rightButton.setFont(font)
-        scrollButtonLayout.addWidget(self.rightButton)
-        self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
+		self.rightButton = QPushButton("🠪")
+		font = self.rightButton.font()
+		font.setPointSize(25)
+		self.rightButton.setFont(font)
+		scrollButtonLayout.addWidget(self.rightButton)
+		self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
-    def ChangeIndex(self, direction:int) -> None:
-        newIndex = self.currentStepIndex + direction
+	def ChangeIndex(self, direction:int) -> None:
+		newIndex = self.currentStepIndex + direction
 
-        if newIndex < 0:
-            newIndex = 0
+		if newIndex < 0:
+			newIndex = 0
 
-        if newIndex >= len(self.skeletonMap[self.currentSkeletonKey]["steps"]):
-            newIndex = len(self.skeletonMap[self.currentSkeletonKey]["steps"]) - 1
+		if newIndex >= len(self.skeletonPipelines[self.currentSkeletonKey]["steps"]):
+			newIndex = len(self.skeletonPipelines[self.currentSkeletonKey]["steps"]) - 1
 
-        if newIndex == 0:
-            self.rightButton.setEnabled(True)
-            self.leftButton.setEnabled(False)
-        elif newIndex == len(self.skeletonMap[self.currentSkeletonKey]["steps"]) - 1:
-            self.rightButton.setEnabled(False)
-            self.leftButton.setEnabled(True)
-        else:
-            self.rightButton.setEnabled(True)
-            self.leftButton.setEnabled(True)
+		if newIndex == 0:
+			self.rightButton.setEnabled(True)
+			self.leftButton.setEnabled(False)
+		elif newIndex == len(self.skeletonPipelines[self.currentSkeletonKey]["steps"]) - 1:
+			self.rightButton.setEnabled(False)
+			self.leftButton.setEnabled(True)
+		else:
+			self.rightButton.setEnabled(True)
+			self.leftButton.setEnabled(True)
 
-        if newIndex != self.currentStepIndex:
-            self.currentStepIndex = newIndex
-            self.LoadSkeletonStep()
+		if newIndex != self.currentStepIndex:
+			self.currentStepIndex = newIndex
+			self.LoadSkeletonStep()
 
-    def LoadNewImage(self, imagePath:str, currSkeletonKey:str, parameterValues:dict) -> None:
-        #load image name and create all the sliders
-        
-        imageName = os.path.splitext(os.path.basename(imagePath))[0]
-        self.imageNameLabel.setText(f"Image: {imageName}")
+	def LoadNewImage(self, imagePath:str, currSkeletonKey:str, parameterValues:dict) -> None:
+		#load image name and create all the sliders
+		
+		imageName = os.path.splitext(os.path.basename(imagePath))[0]
+		self.imageNameLabel.setText(f"Image: {imageName}")
 
-        self.currentStepIndex = 0
-        self.currentSkeletonKey = currSkeletonKey
+		self.currentStepIndex = 0
+		self.currentSkeletonKey = currSkeletonKey
 
-        self.skeletonNameLabel.setText(f"Skeleton Type: {self.skeletonMap[self.currentSkeletonKey]['name']}")
+		self.skeletonNameLabel.setText(f"Skeleton Type: {self.skeletonPipelines[self.currentSkeletonKey]['name']}")
 
-        self.AddParameterSliders(parameterValues)
+		self.AddParameterSliders(parameterValues)
 
-        origImg = Image.open(imagePath)
-        self.originalImageArray = np.asarray(origImg, dtype=np.float64)
-        self.originalImageArray = NormalizeImageArray(self.originalImageArray)
-        origImgPixmap = ArrayToPixmap(self.originalImageArray, self.imageResolution)
-        self.mainImageLabel.setPixmap(origImgPixmap)
+		origImg = Image.open(imagePath)
+		self.originalImageArray = np.asarray(origImg, dtype=np.float64)
+		self.originalImageArray = NormalizeImageArray(self.originalImageArray)
+		origImgPixmap = ArrayToPixmap(self.originalImageArray, self.imageResolution)
+		self.mainImageLabel.setPixmap(origImgPixmap)
 
-        self.LoadSkeletonStep()
+		self.LoadSkeletonStep()
 
-    def deleteItemsOfLayout(self, layout:(QVBoxLayout | QHBoxLayout)):
-     if layout is not None:
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.setParent(None)
-            else:
-                self.deleteItemsOfLayout(item.layout())
+	def deleteItemsOfLayout(self, layout:(QVBoxLayout | QHBoxLayout)):
+		if layout is not None:
+			while layout.count():
+				item = layout.takeAt(0)
+				widget = item.widget()
+				if widget is not None:
+					widget.setParent(None)
+				else:
+					self.deleteItemsOfLayout(item.layout())
 
-    def TriggerParameterChanged(self) -> None:
-        self.ParametersChanged.emit(self.sliders, self.currentSkeletonKey)
+	def TriggerParameterChanged(self) -> None:
+		parameters = self.sliders.GetValues()
 
-    def AddParameterSliders(self, parameterValues:dict) -> None:
-        self.deleteItemsOfLayout(self.parameterLayout)
+		self.ParametersChanged.emit(parameters, self.currentSkeletonKey)
 
-        self.sliders = {}
-        currentEntry = {}
+	def AddParameterSliders(self, parameterValues:dict) -> None:
+		self.deleteItemsOfLayout(self.parameterLayout)
 
-        #loop through each parameter
-        for parameterKey in parameterValues[self.currentSkeletonKey]:
-            name = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["name"]
-            defaultVal = parameterValues[self.currentSkeletonKey][parameterKey]
-            minVal = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["min"]
-            maxVal = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["max"]
-            decimals = self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["decimals"]
+		self.sliders = SkeletonPipelineParameterSliders(self.currentSkeletonKey, self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
+		self.sliders.UpdateValues(parameterValues)
+		self.parameterLayout.addLayout(self.sliders)
 
-            slider = SliderLineEditCombo(name, defaultVal, minVal, maxVal, decimals)
-            self.parameterLayout.addLayout(slider)
+	def LoadSkeletonStep(self) -> None:
+		currentStepName = self.skeletonPipelines[self.currentSkeletonKey]['steps'][self.currentStepIndex]
 
-            slider.ValueChanged.connect(self.TriggerParameterChanged)
+		#set step name label
+		self.stepNameLabel.setText(f"Current Step: {currentStepName}")
 
-            currentEntry[parameterKey] = slider
+		#set related parameters label
+		relatedParametersText = "Related Parameters: "
+		relatedParameters = []
+		for parameterKey in self.pipelineSteps[currentStepName]["relatedParameters"]:
+			relatedParameters.append(self.stepParameters[parameterKey]["name"])
 
-        self.sliders[self.currentSkeletonKey] = currentEntry
+		relatedParametersText += ", ".join(relatedParameters)
 
-    def LoadSkeletonStep(self) -> None:
-        #set step name label
-        self.stepNameLabel.setText(f"Current Step: {self.skeletonMap[self.currentSkeletonKey]['steps'][self.currentStepIndex]['name']}")
+		self.relevantParametersLabel.setText(relatedParametersText)
 
-        #set related parameters label
-        relatedParametersText = "Related Parameters: "
-        relatedParameters = []
-        for parameterKey in self.skeletonMap[self.currentSkeletonKey]["steps"][self.currentStepIndex]["relatedParameters"]:
-            relatedParameters.append(self.skeletonMap[self.currentSkeletonKey]["parameters"][parameterKey]["name"])
+		#create parameter dict
+		parameters = self.sliders.GetValues()
 
-        relatedParametersText += ", ".join(relatedParameters)
+		#calculate image
+		skeletonArray = self.originalImageArray
+		for i, stepName in enumerate(self.skeletonPipelines[self.currentSkeletonKey]["steps"][:self.currentStepIndex + 1]):
+			stepFunctionKey = self.pipelineSteps[stepName]["function"]
 
-        self.relevantParametersLabel.setText(relatedParametersText)
+			skeletonArray = stepFunctionMap[stepFunctionKey](skeletonArray, parameters[i])
 
-        #create parameter dict
-        parameters = {}
-        for parameterKey in self.sliders[self.currentSkeletonKey]:
-            parameters[parameterKey] = self.sliders[self.currentSkeletonKey][parameterKey].value()
+		skeletonArray = np.asarray(skeletonArray, dtype=np.float64)
 
-        #calculate image
-        skeletonArray = self.originalImageArray
-        for step in self.skeletonMap[self.currentSkeletonKey]["steps"][:self.currentStepIndex + 1]:
-            skeletonArray = stepFunctionMap[step["function"]](skeletonArray, parameters)
-
-        skeletonArray = np.asarray(skeletonArray, dtype=np.float64)
-
-        skeletonPixmap = ArrayToPixmap(skeletonArray, self.imageResolution, maxPoolDownSample=True)
-        self.skeletonLabel.setPixmap(skeletonPixmap)
+		skeletonPixmap = ArrayToPixmap(skeletonArray, self.imageResolution, maxPoolDownSample=True)
+		self.skeletonLabel.setPixmap(skeletonPixmap)
