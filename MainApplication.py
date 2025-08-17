@@ -24,6 +24,8 @@ from SkeletonViewer import SkeletonViewer
 from PreviewWindow import PreviewWindow
 from ComparisonWindow import ComparisonWindow
 
+from HelperFunctions import to_camel_case
+
 import json
 
 class MainApplication(QWidget):
@@ -38,30 +40,36 @@ class MainApplication(QWidget):
 
         self.setFixedSize(screen_size.width(), screen_size.height() * 0.9)
 
-        skeletonFile = open("SkeletonPipelines.json", "r")
+        self.skeletonFileName = "SkeletonPipelines.json"
+        self.stepsFileName = "PipelineSteps.json"
+        self.parametersFileName = "StepParameters.json"
+
+        skeletonFile = open(self.skeletonFileName, "r")
         self.skeletonPipelines = json.load(skeletonFile)
         skeletonFile.close()
 
-        stepsFile = open("PipelineSteps.json", "r")
+        stepsFile = open(self.stepsFileName, "r")
         self.pipelineSteps = json.load(stepsFile)
         stepsFile.close()
 
-        parametersFile = open("StepParameters.json", "r")
+        parametersFile = open(self.parametersFileName, "r")
         self.stepParameters = json.load(parametersFile)
         parametersFile.close()
 
-        self.overview = ImageOverview(self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
+        self.overview = ImageOverview(self.skeletonPipelines.copy(), self.pipelineSteps.copy(), self.stepParameters.copy())
         self.overview.ClickedOnSkeleton.connect(self.GoIntoViewer)
         self.overview.TriggerPreview.connect(self.GoIntoPreview)
         self.overview.ParametersChanged.connect(self.RetrieveParameterValues)
         self.overview.CompareToExternal.connect(self.GoIntoComparison)
+        self.overview.SkeletonPipelineChanged.connect(self.SkeletonPipelineChanged)
+        self.overview.SkeletonPipelineNameChanged.connect(self.SkeletonPipelineNameChanged)
         
         self.skeletonViewer = SkeletonViewer()
         self.skeletonViewer.BackButtonPressed.connect(self.BackToOverview)
         self.overview.LoadedNewImage.connect(self.skeletonViewer.SetCurrentImage)
         self.skeletonViewer.CommentsChanged.connect(self.overview.UpdateComments)
 
-        self.previewWindow = PreviewWindow(self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
+        self.previewWindow = PreviewWindow(self.skeletonPipelines.copy(), self.pipelineSteps.copy(), self.stepParameters.copy())
         self.previewWindow.BackToOverview.connect(self.BackToOverview)
         self.previewWindow.ParametersChanged.connect(self.RetrieveParameterValues)
 
@@ -80,10 +88,26 @@ class MainApplication(QWidget):
 
         self.GetInitialParameterValues()
 
+    def SkeletonPipelineChanged(self, newValues:dict) -> None:
+        skeletonFile = open(self.skeletonFileName, "w")
+        json.dump(newValues, skeletonFile, indent=4)
+        skeletonFile.close()
+
+        self.skeletonPipelines = newValues
+
+        self.previewWindow.UpdateSkeletonPipelines(newValues.copy())
+
+    def SkeletonPipelineNameChanged(self, oldKey:str, newName:str) -> None:
+        newKey = to_camel_case(newName)
+
+        self.parameterValues[newKey] = self.parameterValues.pop(oldKey)
+
     def RetrieveParameterValues(self, values:list, currSkeletonKey:str) -> None:
         for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
-            for parameterName in values[i]:
-                self.parameterValues[currSkeletonKey][f"{stepName}-{i}"][parameterName] = values[i][parameterName]
+            #for parameterName in values[i]:
+            #    self.parameterValues[currSkeletonKey][f"{stepName}-{i}"][parameterName] = values[i][parameterName]
+
+            self.parameterValues[currSkeletonKey][f"{stepName}-{i}"] = values[i].copy()
 
     def GetInitialParameterValues(self) -> None:
         self.parameterValues = {}

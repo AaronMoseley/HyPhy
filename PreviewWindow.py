@@ -42,6 +42,9 @@ class PreviewWindow(QWidget):
 
 		self.CreateUI()
 
+	def UpdateSkeletonPipelines(self, newValues:dict) -> None:
+		self.skeletonPipelines = newValues
+
 	def CreateUI(self) -> None:
 		#overall, horizontal QBox
 		mainLayout = QHBoxLayout()
@@ -167,7 +170,12 @@ class PreviewWindow(QWidget):
 	def AddParameterSliders(self, parameterValues:dict) -> None:
 		self.deleteItemsOfLayout(self.parameterLayout)
 
-		self.sliders = SkeletonPipelineParameterSliders(self.currentSkeletonKey, self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
+		self.sliders = SkeletonPipelineParameterSliders(
+			self.currentSkeletonKey, 
+			self.skeletonPipelines.copy(), 
+			self.pipelineSteps.copy(), 
+			self.stepParameters.copy(), 
+			False)
 		self.sliders.ValueChanged.connect(self.TriggerParameterChanged)
 		self.sliders.UpdateValues(parameterValues[self.currentSkeletonKey])
 		self.parameterLayout.addLayout(self.sliders)

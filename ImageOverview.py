@@ -3,6 +3,7 @@ from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtCore import Qt, Signal
 
 import numpy as np
+import shutil
 
 from functools import partial
 
@@ -11,7 +12,7 @@ import json
 
 from PIL import Image
 
-from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey
+from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, to_camel_case, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey
 from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
 from ProgressBar import ProgressBarPopup
@@ -27,6 +28,8 @@ class ImageOverview(QWidget):
 	ParametersChanged = Signal(list, str)
 	TriggerPreview = Signal(str, str)
 	CompareToExternal = Signal(str)
+	SkeletonPipelineChanged = Signal(dict)
+	SkeletonPipelineNameChanged = Signal(str, str)
 
 	def __init__(self, skeletonPipelines:dict, pipelineSteps:dict, stepParameters:dict) -> None:
 		super().__init__()
@@ -137,11 +140,106 @@ class ImageOverview(QWidget):
 			scrollLayout.addLayout(currSkeletonLayout)
 			self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
 
-			sliderLayout = SkeletonPipelineParameterSliders(currSkeletonKey, self.skeletonPipelines, self.pipelineSteps, self.stepParameters)
+			sliderLayout = SkeletonPipelineParameterSliders(
+				currSkeletonKey, 
+				self.skeletonPipelines.copy(), 
+				self.pipelineSteps.copy(), 
+				self.stepParameters.copy(), 
+				True)
 			currSkeletonLayout.addLayout(sliderLayout)
 
 			sliderLayout.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
+			sliderLayout.UpdatedSkeletonName.connect(self.TriggerSkeletonPipelineNameChanged)
+			sliderLayout.UpdatedSkeletonPipeline.connect(self.SkeletonPipelineModified)
 			self.sliderMap[currSkeletonKey] = sliderLayout
+
+	def UpdateCalculationsFileSkeletonName(self, oldKey:str, newKey:str) -> None:
+		#loop through output files
+		for fileName in os.listdir(self.defaultOutputDirectory):
+			baseName, extension = os.path.splitext(fileName)
+
+			if baseName.endswith(f"_{oldKey}"):
+				newBaseName = baseName.replace(oldKey, newKey)
+				os.rename(os.path.join(self.defaultOutputDirectory, fileName), os.path.join(self.defaultOutputDirectory, newBaseName + extension))
+
+		for fileName in os.listdir(os.path.join(self.defaultOutputDirectory, "Calculations")):
+			#get calculations file
+			if fileName.endswith("_calculations.json"):
+				#load calculations file
+				currentCalculationsFile = open(os.path.join(self.defaultOutputDirectory, "Calculations", fileName), "r")
+				currentCalculations:dict = json.load(currentCalculationsFile)
+				currentCalculationsFile.close()
+
+				#switch name
+				if oldKey in currentCalculations:
+					currentCalculations[newKey] = currentCalculations.pop(oldKey)
+
+					#save calculations file
+					writeCalculationsFile = open(os.path.join(self.defaultOutputDirectory, "Calculations", fileName), "w")
+					json.dump(currentCalculations, writeCalculationsFile, indent=4)
+					writeCalculationsFile.close()
+
+				baseInputFileName = fileName.replace("_calculations.json", "")
+
+				GenerateCSVs(currentCalculations, baseInputFileName, self.defaultOutputDirectory)
+			elif fileName.endswith("csvs"):
+				shutil.rmtree(os.path.join(self.defaultOutputDirectory, "Calculations", fileName))
+
+	def TriggerSkeletonPipelineNameChanged(self, oldKey:str, newName:str) -> None:
+		#change stuff in skeleton pipelines
+		newKey = to_camel_case(newName)
+
+		self.skeletonPipelines[newKey] = self.skeletonPipelines.pop(oldKey)
+		self.skeletonPipelines[newKey]["name"] = newName
+
+		self.sliderMap[newKey] = self.sliderMap.pop(oldKey)
+		self.sliderMap[newKey].ValueChanged.disconnect()
+		self.sliderMap[newKey].ValueChanged.connect(partial(self.TriggerParameterChanged, newKey))
+
+		self.UpdateCalculationsFileSkeletonName(oldKey, newKey)
+
+		#find related preview button
+		previewButton:QPushButton = self.previewButtons.pop(oldKey)
+		self.previewButtons[newKey] = previewButton
+
+		#clear all connections to clicked
+		previewButton.clicked.disconnect()
+
+		#add new one
+		previewButton.clicked.connect(partial(self.LoadPreview, newKey))
+
+
+		#find related preview button
+		overlayButton:QPushButton = self.overlayButtons.pop(oldKey)
+		self.overlayButtons[newKey] = overlayButton
+
+		#clear all connections to clicked
+		overlayButton.clicked.disconnect()
+
+		#add new one
+		overlayButton.clicked.connect(partial(self.ToggleOverlay, newKey))
+
+
+		#find related preview button
+		comparisonButton:QPushButton = self.comparisonButtons.pop(oldKey)
+		self.comparisonButtons[newKey] = comparisonButton
+
+		#clear all connections to clicked
+		comparisonButton.clicked.disconnect()
+
+		#add new one
+		comparisonButton.clicked.connect(partial(self.CompareToExternalSkeleton, newKey))
+
+		#carry over to preview window with signal
+		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
+		self.SkeletonPipelineNameChanged.emit(oldKey, newName)
+
+	def SkeletonPipelineModified(self, pipelineKey:str, newValues:dict) -> None:
+		#change stuff in skeleton pipelines
+		self.skeletonPipelines[pipelineKey] = newValues.copy()[pipelineKey]
+
+		#carry over to preview window with signal
+		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
 
 	def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
 		parameterValues = self.sliderMap[currSkeletonKey].GetValues()
@@ -327,6 +425,9 @@ class ImageOverview(QWidget):
 		self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
 		self.skeletonLabels = {}
+		self.previewButtons = {}
+		self.overlayButtons = {}
+		self.comparisonButtons = {}
 
 		for currSkeletonKey in self.skeletonPipelines:
 			skeletonLabel = ClickableLabel()
@@ -347,14 +448,17 @@ class ImageOverview(QWidget):
 			buttonLayout.addWidget(previewButton)
 
 			previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
+			self.previewButtons[currSkeletonKey] = previewButton
 
 			overlayButton = QPushButton(" Toggle Overlay on Original ")
 			buttonLayout.addWidget(overlayButton)
+			self.overlayButtons[currSkeletonKey] = overlayButton
 
 			overlayButton.clicked.connect(partial(self.ToggleOverlay, currSkeletonKey))
 
 			compareButton = QPushButton(" Compare to External Skeleton ")
 			buttonLayout.addWidget(compareButton)
+			self.comparisonButtons[currSkeletonKey] = compareButton
 
 			compareButton.clicked.connect(partial(self.CompareToExternalSkeleton, currSkeletonKey))
 
@@ -453,6 +557,9 @@ class ImageOverview(QWidget):
 		self.originalImageLabel.setPixmap(originalImagePixmap)
 
 		for currSkeletonKey in self.skeletonLabels:
+			if currSkeletonKey not in calculations:
+				continue
+
 			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
 			self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)

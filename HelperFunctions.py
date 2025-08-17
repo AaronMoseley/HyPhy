@@ -380,6 +380,13 @@ def NormalizeImageArray(array:np.ndarray) -> np.ndarray:
 
     return arrayCopy
 
+def to_camel_case(text:str):
+    words = text.split()
+    if not words:
+        return ""
+    # Lowercase the first word, capitalize the rest
+    return words[0].lower() + ''.join(word.capitalize() for word in words[1:])
+
 def DistanceToLine(P, A, B):
     P = np.array(P, dtype=float)
     A = np.array(A, dtype=float)
