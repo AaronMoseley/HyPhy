@@ -20,6 +20,8 @@ from CreateSkeleton import GenerateSkeleton
 from CSVCreator import GenerateCSVs
 import copy
 
+import time
+
 from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
 
 class ImageOverview(QWidget):
@@ -354,6 +356,8 @@ class ImageOverview(QWidget):
 		
 		self.ReadDirectories()
 
+		startTime = time.time()
+
 		totalFiles = 0
 		for sample in self.sampleToFiles:
 			totalFiles += len(self.sampleToFiles[sample])
@@ -368,6 +372,9 @@ class ImageOverview(QWidget):
 				self.CreateSkeleton(fileName, sample)
 				progressBar.increment()
 				QApplication.processEvents()
+
+		endTime = time.time()
+		print(f"Total Time Taken: {endTime - startTime} seconds")
 
 		#add skeleton UI
 		self.AddSkeletonUI()
