@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDoubleValidator, QFont
 
 from SliderLineEditCombo import SliderLineEditCombo
+from StepWithParameters import StepWithParameters
 
 class SkeletonPipelineParameterSliders(QVBoxLayout):
     ValueChanged = Signal()
@@ -30,50 +31,33 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
 
         self.addWidget(titleLabel)
 
-        self.sliders = {}
+        self.stepObjects = {}
 
         stepNameFont = QFont()
         stepNameFont.setPointSize(12)
 
         #loop through steps
         for i, stepName in enumerate(self.skeletonPipelines[self.currSkeletonKey]["steps"]):
-            stepSliders = {}
-            
-            #add label for step
-            stepNameLabel = QLabel(f"{i + 1}. {stepName}")
-            stepNameLabel.setFont(stepNameFont)
-            self.addWidget(stepNameLabel)
+            step = StepWithParameters(
+                self.skeletonPipelines,
+                self.pipelineSteps,
+                self.parameters,
+                i,
+                stepName
+            )
 
-            #loop through parameters
-            for parameterName in self.pipelineSteps[stepName]["relatedParameters"]:
-                #add slider/line edit for parameters
-                currSlider = SliderLineEditCombo(
-                    "\t" + self.parameters[parameterName]["name"],
-                    self.parameters[parameterName]["default"],
-                    self.parameters[parameterName]["min"],
-                    self.parameters[parameterName]["max"],
-                    self.parameters[parameterName]["decimals"]
-                )
+            step.ValueChanged.connect(self.TriggerValueChanged)
 
-                currSlider.ValueChanged.connect(self.TriggerValueChanged)
+            self.addLayout(step)
 
-                self.addLayout(currSlider)
-
-                stepSliders[parameterName] = currSlider
-
-            self.sliders[f"{stepName}-{i}"] = stepSliders
+            self.stepObjects[f"{stepName}-{i}"] = step
 
     def GetValues(self) -> list:
         result = []
 
         #loop through each step
         for i, stepName in enumerate(self.skeletonPipelines[self.currSkeletonKey]["steps"]):
-            currResult = {}
-            
-            #loop through parameter sliders for the step
-            for parameterName in self.sliders[f"{stepName}-{i}"]:
-                #append to resulting dict
-                currResult[parameterName] = self.sliders[f"{stepName}-{i}"][parameterName].value()
+            currResult = self.stepObjects[f"{stepName}-{i}"].GetValues()
 
             result.append(currResult)
         
@@ -83,11 +67,10 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
         self.currentlyUpdatingValues = True
 
         for stepName in values:
-            if stepName not in self.sliders:
+            if stepName not in self.stepObjects:
                 continue
 
-            for parameterName in self.sliders[stepName]:
-                self.sliders[stepName][parameterName].UpdateValue(values[stepName][parameterName])
+            self.stepObjects[stepName].UpdateValues(values[stepName])
 
         self.currentlyUpdatingValues = False
 
