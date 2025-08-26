@@ -22,6 +22,7 @@ import copy
 
 import time
 
+from SkeletonPipelineDisplay import SkeletonPipelineDisplay
 from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
 
 class ImageOverview(QWidget):
@@ -200,37 +201,9 @@ class ImageOverview(QWidget):
 
 		self.UpdateCalculationsFileSkeletonName(oldKey, newKey)
 
-		#find related preview button
-		previewButton:QPushButton = self.previewButtons.pop(oldKey)
-		self.previewButtons[newKey] = previewButton
-
-		#clear all connections to clicked
-		previewButton.clicked.disconnect()
-
-		#add new one
-		previewButton.clicked.connect(partial(self.LoadPreview, newKey))
-
-
-		#find related preview button
-		overlayButton:QPushButton = self.overlayButtons.pop(oldKey)
-		self.overlayButtons[newKey] = overlayButton
-
-		#clear all connections to clicked
-		overlayButton.clicked.disconnect()
-
-		#add new one
-		overlayButton.clicked.connect(partial(self.ToggleOverlay, newKey))
-
-
-		#find related preview button
-		comparisonButton:QPushButton = self.comparisonButtons.pop(oldKey)
-		self.comparisonButtons[newKey] = comparisonButton
-
-		#clear all connections to clicked
-		comparisonButton.clicked.disconnect()
-
-		#add new one
-		comparisonButton.clicked.connect(partial(self.CompareToExternalSkeleton, newKey))
+		oldSkeletonDisplay = self.skeletonDisplays.pop(oldKey)
+		self.skeletonDisplays[newKey] = oldSkeletonDisplay
+		oldSkeletonDisplay.SetNewSkeletonKey(newKey)
 
 		#carry over to preview window with signal
 		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
@@ -431,43 +404,16 @@ class ImageOverview(QWidget):
 		scrollButtonLayout.addWidget(self.rightButton)
 		self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
-		self.skeletonLabels = {}
-		self.previewButtons = {}
-		self.overlayButtons = {}
-		self.comparisonButtons = {}
+		self.skeletonDisplays:dict[str, SkeletonPipelineDisplay] = {}
 
 		for currSkeletonKey in self.skeletonPipelines:
-			skeletonLabel = ClickableLabel()
-			skeletonLabel.clicked.connect(partial(self.GoIntoSkeletonView, currSkeletonKey))
-			self.skeletonLabels[currSkeletonKey] = skeletonLabel
+			self.skeletonDisplays[currSkeletonKey] = SkeletonPipelineDisplay(currSkeletonKey, self.imageSize)
+			self.skeletonLayouts[currSkeletonKey].addLayout(self.skeletonDisplays[currSkeletonKey])
 
-			currLayout = QVBoxLayout()
-			self.skeletonLayouts[currSkeletonKey].addLayout(currLayout)
-
-			currLayout.addWidget(skeletonLabel, alignment=Qt.AlignmentFlag.AlignCenter)
-
-			skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
-
-			buttonLayout = QHBoxLayout()
-			currLayout.addLayout(buttonLayout)
-
-			previewButton = QPushButton(" Preview Steps ")
-			buttonLayout.addWidget(previewButton)
-
-			previewButton.clicked.connect(partial(self.LoadPreview, currSkeletonKey))
-			self.previewButtons[currSkeletonKey] = previewButton
-
-			overlayButton = QPushButton(" Toggle Overlay on Original ")
-			buttonLayout.addWidget(overlayButton)
-			self.overlayButtons[currSkeletonKey] = overlayButton
-
-			overlayButton.clicked.connect(partial(self.ToggleOverlay, currSkeletonKey))
-
-			compareButton = QPushButton(" Compare to External Skeleton ")
-			buttonLayout.addWidget(compareButton)
-			self.comparisonButtons[currSkeletonKey] = compareButton
-
-			compareButton.clicked.connect(partial(self.CompareToExternalSkeleton, currSkeletonKey))
+			self.skeletonDisplays[currSkeletonKey].GoIntoSkeletonView.connect(self.GoIntoSkeletonView)
+			self.skeletonDisplays[currSkeletonKey].LoadPreview.connect(self.LoadPreview)
+			self.skeletonDisplays[currSkeletonKey].ToggleOverlay.connect(self.ToggleOverlay)
+			self.skeletonDisplays[currSkeletonKey].CompareToExternalSkeleton.connect(self.CompareToExternalSkeleton)
 
 		self.LoadNewSample(list(self.sampleToFiles.keys())[0])
 
@@ -513,14 +459,14 @@ class ImageOverview(QWidget):
 			overlayedPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize,
 												   line_width=1, line_color=QColor("red"), pixmap=originalImagePixmap)
 
-			self.skeletonLabels[currSkeletonKey].setPixmap(overlayedPixmap)
+			self.skeletonDisplays[currSkeletonKey].SetPixmap(overlayedPixmap)
 
 		else:
 			self.currentSkeletonsOverlayed.remove(currSkeletonKey)
 
 			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
-			self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
+			self.skeletonDisplays[currSkeletonKey].SetPixmap(skeletonPixmap)
 
 	def LoadPreview(self, currSkeletonKey:str) -> None:
 		currImageName = self.currentFileList[self.currentIndex]
@@ -563,13 +509,13 @@ class ImageOverview(QWidget):
 
 		self.originalImageLabel.setPixmap(originalImagePixmap)
 
-		for currSkeletonKey in self.skeletonLabels:
+		for currSkeletonKey in self.skeletonDisplays:
 			if currSkeletonKey not in calculations:
 				continue
 
 			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
-			self.skeletonLabels[currSkeletonKey].setPixmap(skeletonPixmap)
+			self.skeletonDisplays[currSkeletonKey].SetPixmap(skeletonPixmap)
 
 		self.LoadedNewImage.emit(calculations)
 
