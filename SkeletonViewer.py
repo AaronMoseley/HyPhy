@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QFileDialog, QLabel, QApplication, QTextEdit
-from PySide6.QtGui import QPixmap, QColor, QResizeEvent
+from PySide6.QtGui import QPixmap, QColor, QResizeEvent, QDoubleValidator
 from PySide6.QtCore import Qt, Signal
 
 from collections import OrderedDict
@@ -32,6 +32,14 @@ class SkeletonViewer(QWidget):
         self.AddUI()
 
     def AddUI(self) -> None:
+        blackPixmap = QPixmap(self.imageResolution, self.imageResolution)
+        blackPixmap.fill(QColor("black"))
+        
+        self.skeletonLabel = InteractiveSkeletonPixmap(self.imageResolution)
+        self.skeletonLabel.UpdateLineComments.connect(self.ReadComments)
+        self.skeletonLabel.UpdateLineData.connect(self.UpdateLengthLabels)
+        self.skeletonLabel.setPixmap(blackPixmap)
+        
         mainLayout = QVBoxLayout()
         self.setLayout(mainLayout)
         
@@ -40,10 +48,19 @@ class SkeletonViewer(QWidget):
 
         backButton = QPushButton("Back")
         backButton.pressed.connect(self.BackToOverview)
-        topLayout.addWidget(backButton)
+        topLayout.addWidget(backButton, 1)
 
         self.imageTitleLabel = QLabel(self.imageTitleLabelPrefix)
-        topLayout.addWidget(self.imageTitleLabel)
+        topLayout.addWidget(self.imageTitleLabel, 4)
+
+        scaleLabelLayout = QHBoxLayout()
+        topLayout.addLayout(scaleLabelLayout, stretch=2)
+        scaleLabelLayout.addWidget(QLabel("Image Side Length (any unit):"))
+        self.imageScaleLineEdit = QLineEdit("1.0")
+        scaleLabelLayout.addWidget(self.imageScaleLineEdit)
+        validator = QDoubleValidator(0.0, 999, 2)
+        self.imageScaleLineEdit.setValidator(validator)
+        self.imageScaleLineEdit.editingFinished.connect(self.skeletonLabel.EmitLineData)
 
         lengthLayout = QHBoxLayout()
         mainLayout.addLayout(lengthLayout, 1)
@@ -57,17 +74,10 @@ class SkeletonViewer(QWidget):
         imageLayout = QHBoxLayout()
         mainLayout.addLayout(imageLayout, 50)
 
-        blackPixmap = QPixmap(self.imageResolution, self.imageResolution)
-        blackPixmap.fill(QColor("black"))
-
         self.origImageLabel = QLabel()
         self.origImageLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.origImageLabel)
 
-        self.skeletonLabel = InteractiveSkeletonPixmap(self.imageResolution)
-        self.skeletonLabel.UpdateLineComments.connect(self.ReadComments)
-        self.skeletonLabel.UpdateLineData.connect(self.UpdateLengthLabels)
-        self.skeletonLabel.setPixmap(blackPixmap)
         imageLayout.addWidget(self.skeletonLabel)
 
         paddedLayout = QVBoxLayout()
@@ -170,6 +180,8 @@ class SkeletonViewer(QWidget):
                                   self.selectedClusterTextbox.toPlainText())
 
     def UpdateLengthLabels(self, lineLength:float, clumpLength:float, lineIndex:int, clumpIndex:int) -> None:
+        imageScale = float(self.imageScaleLineEdit.text())
+        
         if lineLength < 0 or clumpLength < 0:
             self.lineLengthLabel.setText(self.lineLengthPrefix + "N/A")
             self.clumpLengthLabel.setText(self.clumpLengthPrefix + "N/A")
@@ -196,9 +208,14 @@ class SkeletonViewer(QWidget):
                 subtitle = f"(per {statFunctionMap[statsLabelKey][functionTypeKey]})"
 
                 if statFunctionMap[statsLabelKey][functionTypeKey] == clusterTypeKey:
-                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[self.currentSkeletonKey][statsLabelKey][clumpIndex]}")
+                    value = self.currentResults[self.currentSkeletonKey][statsLabelKey][clumpIndex]
                 elif statFunctionMap[statsLabelKey][functionTypeKey] == lineTypeKey:
-                    self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {self.currentResults[self.currentSkeletonKey][statsLabelKey][lineIndex]}")
+                    value = self.currentResults[self.currentSkeletonKey][statsLabelKey][lineIndex]
+
+                if statFunctionMap[statsLabelKey]["inImageSpace"]:
+                    value *= imageScale
+
+                self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: {value}")
 
     def SetImage(self, imageName:str, currSkeletonKey:str) -> None:
         self.currentImageName = imageName

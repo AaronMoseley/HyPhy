@@ -420,31 +420,38 @@ def DistanceToLine(P, A, B):
 statFunctionMap = {
     "fractalDimension": {
         functionKey: fractalDimension,
-        functionTypeKey: imageTypeKey
+        functionTypeKey: imageTypeKey,
+        "inImageSpace": False
     },
     "linesInImage": {
         functionKey: numLinesInImage,
-        functionTypeKey: imageTypeKey
+        functionTypeKey: imageTypeKey,
+        "inImageSpace": False
     },
     "clustersInImage": {
         functionKey: numClumpsInImage,
-        functionTypeKey: imageTypeKey
+        functionTypeKey: imageTypeKey,
+        "inImageSpace": False
     },
     "linesInCluster": {
         functionKey: numLinesInClump,
-        functionTypeKey: clusterTypeKey
+        functionTypeKey: clusterTypeKey,
+        "inImageSpace": False
     },
     "averageLineLength": {
         functionKey: averageLengthOfLinesInClump,
-        functionTypeKey: clusterTypeKey
+        functionTypeKey: clusterTypeKey,
+        "inImageSpace": True
     },
     "isLineStraight": {
         functionKey: isLineStraight,
-        functionTypeKey: lineTypeKey
+        functionTypeKey: lineTypeKey,
+        "inImageSpace": False
     },
     "centerLineWidth": {
         functionKey:middleWidth,
-        functionTypeKey: lineTypeKey
+        functionTypeKey: lineTypeKey,
+        "inImageSpace": True
     }
 }
 
