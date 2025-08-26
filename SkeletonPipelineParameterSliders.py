@@ -12,6 +12,8 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
     UpdatedSkeletonPipeline = Signal(str, dict)
     #old key, new name
     UpdatedSkeletonName = Signal(str, str)
+
+    DeleteSkeletonPipeline = Signal(str)
     
     def __init__(self, currSkeletonKey:str, skeletonPipelines:dict, pipelineSteps:dict, parameters:dict, editable:bool) -> None:
         super().__init__()
@@ -30,18 +32,24 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
     def AddUI(self) -> None:
         #add label
         if self.editable:
+            topLayout = QHBoxLayout()
+            self.addLayout(topLayout)
+
             titleLabel = QLineEdit(self.skeletonPipelines[self.currSkeletonKey]["name"])
             titleLabel.textChanged.connect(self.TriggerSkeletonNameChanged)
+            topLayout.addWidget(titleLabel, stretch=2)
+
+            deleteButton = QPushButton("X")
+            topLayout.addWidget(deleteButton, stretch=1)
         else:
             titleLabel = QLabel(self.skeletonPipelines[self.currSkeletonKey]["name"])
+            self.addWidget(titleLabel)
 
         titleFont = QFont()
         titleFont.setBold(True)
         titleFont.setPointSize(18)
         titleFont.setUnderline(True)
         titleLabel.setFont(titleFont)
-
-        self.addWidget(titleLabel)
 
         self.stepObjects:dict[str, StepWithParameters] = {}
 
@@ -211,3 +219,6 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
             return
         
         self.ValueChanged.emit()
+
+    def TriggerDeletePipeline(self) -> None:
+        self.DeleteSkeletonPipeline.emit(self.currSkeletonKey)

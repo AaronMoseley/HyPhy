@@ -24,6 +24,7 @@ import time
 
 from SkeletonPipelineDisplay import SkeletonPipelineDisplay
 from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
+from SkeletonPipelineDisplayRegion import SkeletonPipelineDisplayRegion
 
 class ImageOverview(QWidget):
 	ClickedOnSkeleton = Signal(str, str)
@@ -124,37 +125,22 @@ class ImageOverview(QWidget):
 		layout.addWidget(self.generateSampleSkeletonsButton)
 		self.generateSampleSkeletonsButton.setEnabled(False)
 
-		self.sliderMap = {}
-
-		self.skeletonLayouts = {}
-
 		self.mainImageLayout = QVBoxLayout()
 		layout.addLayout(self.mainImageLayout)
 
-		scrollableArea = QScrollArea(self)
-		scrollableArea.setWidgetResizable(True)
-		layout.addWidget(scrollableArea)
-		scrollContentWidget = QWidget()
-		scrollableArea.setWidget(scrollContentWidget)
-		scrollLayout = QVBoxLayout(scrollContentWidget)
+		self.skeletonDisplayRegion = SkeletonPipelineDisplayRegion(
+			self, 
+			self.skeletonPipelines,
+			self.pipelineSteps, 
+			self.stepParameters, 
+			self.imageSize
+		)
 
-		for currSkeletonKey in self.skeletonPipelines:
-			currSkeletonLayout = QHBoxLayout()
-			scrollLayout.addLayout(currSkeletonLayout)
-			self.skeletonLayouts[currSkeletonKey] = currSkeletonLayout
+		layout.addWidget(self.skeletonDisplayRegion)
 
-			sliderLayout = SkeletonPipelineParameterSliders(
-				currSkeletonKey, 
-				self.skeletonPipelines.copy(), 
-				self.pipelineSteps.copy(), 
-				self.stepParameters.copy(), 
-				True)
-			currSkeletonLayout.addLayout(sliderLayout)
-
-			sliderLayout.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
-			sliderLayout.UpdatedSkeletonName.connect(self.TriggerSkeletonPipelineNameChanged)
-			sliderLayout.UpdatedSkeletonPipeline.connect(self.SkeletonPipelineModified)
-			self.sliderMap[currSkeletonKey] = sliderLayout
+		self.skeletonDisplayRegion.ParameterChanged.connect(self.TriggerParameterChanged)
+		self.skeletonDisplayRegion.SkeletonPipelineNameChanged.connect(self.TriggerSkeletonPipelineNameChanged)
+		self.skeletonDisplayRegion.SkeletonPipelineModified.connect(self.SkeletonPipelineModified)
 
 	def UpdateCalculationsFileSkeletonName(self, oldKey:str, newKey:str) -> None:
 		#loop through output files
@@ -195,15 +181,7 @@ class ImageOverview(QWidget):
 		self.skeletonPipelines[newKey] = self.skeletonPipelines.pop(oldKey)
 		self.skeletonPipelines[newKey]["name"] = newName
 
-		self.sliderMap[newKey] = self.sliderMap.pop(oldKey)
-		self.sliderMap[newKey].ValueChanged.disconnect()
-		self.sliderMap[newKey].ValueChanged.connect(partial(self.TriggerParameterChanged, newKey))
-
 		self.UpdateCalculationsFileSkeletonName(oldKey, newKey)
-
-		oldSkeletonDisplay = self.skeletonDisplays.pop(oldKey)
-		self.skeletonDisplays[newKey] = oldSkeletonDisplay
-		oldSkeletonDisplay.SetNewSkeletonKey(newKey)
 
 		#carry over to preview window with signal
 		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
@@ -216,14 +194,8 @@ class ImageOverview(QWidget):
 		#carry over to preview window with signal
 		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
 
-	def TriggerParameterChanged(self, currSkeletonKey:str) -> None:
-		parameterValues = self.sliderMap[currSkeletonKey].GetValues()
-
-		self.ParametersChanged.emit(parameterValues, currSkeletonKey)
-
-	def LoadOtherParameters(self, values:dict) -> None:
-		for currSkeletonKey in self.sliderMap:
-			self.sliderMap[currSkeletonKey].UpdateValues(values[currSkeletonKey])
+	def TriggerParameterChanged(self, currSkeletonKey:str, newValues:dict) -> None:
+		self.ParametersChanged.emit(newValues, currSkeletonKey)
 
 	def ReadDirectories(self) -> None:
 		inputDir = self.inputDirLineEdit.text()
@@ -257,7 +229,7 @@ class ImageOverview(QWidget):
 		#get result from skeleton creator
 		for currSkeletonKey in self.skeletonPipelines:
 			#create parameters
-			parameters = self.sliderMap[currSkeletonKey].GetValues()
+			parameters = self.skeletonDisplayRegion.GetParameterValues(currSkeletonKey)
 
 			skeletonResult = GenerateSkeleton(self.defaultInputDirectory, fileName, parameters, self.skeletonPipelines[currSkeletonKey]["steps"], self.pipelineSteps)
 
@@ -404,16 +376,11 @@ class ImageOverview(QWidget):
 		scrollButtonLayout.addWidget(self.rightButton)
 		self.rightButton.clicked.connect(partial(self.ChangeIndex, 1))
 
-		self.skeletonDisplays:dict[str, SkeletonPipelineDisplay] = {}
-
-		for currSkeletonKey in self.skeletonPipelines:
-			self.skeletonDisplays[currSkeletonKey] = SkeletonPipelineDisplay(currSkeletonKey, self.imageSize)
-			self.skeletonLayouts[currSkeletonKey].addLayout(self.skeletonDisplays[currSkeletonKey])
-
-			self.skeletonDisplays[currSkeletonKey].GoIntoSkeletonView.connect(self.GoIntoSkeletonView)
-			self.skeletonDisplays[currSkeletonKey].LoadPreview.connect(self.LoadPreview)
-			self.skeletonDisplays[currSkeletonKey].ToggleOverlay.connect(self.ToggleOverlay)
-			self.skeletonDisplays[currSkeletonKey].CompareToExternalSkeleton.connect(self.CompareToExternalSkeleton)
+		self.skeletonDisplayRegion.AddSkeletonDisplays()
+		self.skeletonDisplayRegion.GoIntoSkeletonView.connect(self.GoIntoSkeletonView)
+		self.skeletonDisplayRegion.LoadPreview.connect(self.LoadPreview)
+		self.skeletonDisplayRegion.ToggleOverlay.connect(self.ToggleOverlay)
+		self.skeletonDisplayRegion.CompareToExternalSkeleton.connect(self.CompareToExternalSkeleton)
 
 		self.LoadNewSample(list(self.sampleToFiles.keys())[0])
 
@@ -459,14 +426,14 @@ class ImageOverview(QWidget):
 			overlayedPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize,
 												   line_width=1, line_color=QColor("red"), pixmap=originalImagePixmap)
 
-			self.skeletonDisplays[currSkeletonKey].SetPixmap(overlayedPixmap)
+			self.skeletonDisplayRegion.SetPixmap(currSkeletonKey, overlayedPixmap)
 
 		else:
 			self.currentSkeletonsOverlayed.remove(currSkeletonKey)
 
 			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
-			self.skeletonDisplays[currSkeletonKey].SetPixmap(skeletonPixmap)
+			self.skeletonDisplayRegion.SetPixmap(currSkeletonKey, skeletonPixmap)
 
 	def LoadPreview(self, currSkeletonKey:str) -> None:
 		currImageName = self.currentFileList[self.currentIndex]
@@ -509,19 +476,18 @@ class ImageOverview(QWidget):
 
 		self.originalImageLabel.setPixmap(originalImagePixmap)
 
-		for currSkeletonKey in self.skeletonDisplays:
+		for currSkeletonKey in self.skeletonPipelines:
 			if currSkeletonKey not in calculations:
 				continue
 
 			skeletonPixmap = draw_lines_on_pixmap(calculations[currSkeletonKey][vectorKey][pointsKey], calculations[currSkeletonKey][vectorKey][linesKey], self.imageSize)
 
-			self.skeletonDisplays[currSkeletonKey].SetPixmap(skeletonPixmap)
+			self.skeletonDisplayRegion.SetPixmap(currSkeletonKey, skeletonPixmap)
 
 		self.LoadedNewImage.emit(calculations)
 
 	def SetParameterValues(self, values:dict) -> None:
-		for currSkeletonKey in self.sliderMap:
-			self.sliderMap[currSkeletonKey].UpdateValues(values[currSkeletonKey])
+		self.skeletonDisplayRegion.SetParameterValues(values)
 
 	def ChangeIndex(self, direction:int) -> None:
 		if self.currentIndex + direction < 0 or self.currentIndex + direction >= len(self.currentFileList):
