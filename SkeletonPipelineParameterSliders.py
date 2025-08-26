@@ -7,7 +7,7 @@ from StepWithParameters import StepWithParameters
 from HelperFunctions import to_camel_case
 
 class SkeletonPipelineParameterSliders(QVBoxLayout):
-    ValueChanged = Signal()
+    ValueChanged = Signal(str)
     #skeleton key, skeleton pipeline
     UpdatedSkeletonPipeline = Signal(str, dict)
     #old key, new name
@@ -41,6 +41,7 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
 
             deleteButton = QPushButton("X")
             topLayout.addWidget(deleteButton, stretch=1)
+            deleteButton.clicked.connect(self.TriggerDeletePipeline)
         else:
             titleLabel = QLabel(self.skeletonPipelines[self.currSkeletonKey]["name"])
             self.addWidget(titleLabel)
@@ -145,6 +146,8 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
             else:
                 stepObject.DeleteButtonSetEnabled(False)
         
+        self.skeletonizeLabel.setText(f"{len(self.skeletonPipelines[self.currSkeletonKey]['steps']) + 1}. Skeletonize")
+
         #emit changes to skeleton map
         self.UpdatedSkeletonPipeline.emit(self.currSkeletonKey, self.skeletonPipelines)
 
@@ -179,6 +182,9 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
 
         #emit changes to skeleton map
         self.skeletonPipelines[self.currSkeletonKey]["steps"].append(stepName)
+
+        self.skeletonizeLabel.setText(f"{len(self.skeletonPipelines[self.currSkeletonKey]['steps']) + 1}. Skeletonize")
+
         self.UpdatedSkeletonPipeline.emit(self.currSkeletonKey, self.skeletonPipelines)
 
     def StepNameChanged(self, stepIndex:int, oldStepName:str, newStepName:str) -> None:
@@ -218,7 +224,7 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
         if self.currentlyUpdatingValues:
             return
         
-        self.ValueChanged.emit()
+        self.ValueChanged.emit(self.currSkeletonKey)
 
     def TriggerDeletePipeline(self) -> None:
         self.DeleteSkeletonPipeline.emit(self.currSkeletonKey)

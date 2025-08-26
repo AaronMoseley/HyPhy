@@ -35,6 +35,9 @@ class ImageOverview(QWidget):
 	SkeletonPipelineChanged = Signal(dict)
 	SkeletonPipelineNameChanged = Signal(str, str)
 
+	PipelineAdded = Signal(str)
+	PipelineRemoved = Signal(str)
+
 	def __init__(self, skeletonPipelines:dict, pipelineSteps:dict, stepParameters:dict) -> None:
 		super().__init__()
 
@@ -130,9 +133,9 @@ class ImageOverview(QWidget):
 
 		self.skeletonDisplayRegion = SkeletonPipelineDisplayRegion(
 			self, 
-			self.skeletonPipelines,
-			self.pipelineSteps, 
-			self.stepParameters, 
+			self.skeletonPipelines.copy(),
+			self.pipelineSteps.copy(), 
+			self.stepParameters.copy(), 
 			self.imageSize
 		)
 
@@ -141,6 +144,26 @@ class ImageOverview(QWidget):
 		self.skeletonDisplayRegion.ParameterChanged.connect(self.TriggerParameterChanged)
 		self.skeletonDisplayRegion.SkeletonPipelineNameChanged.connect(self.TriggerSkeletonPipelineNameChanged)
 		self.skeletonDisplayRegion.SkeletonPipelineModified.connect(self.SkeletonPipelineModified)
+
+		self.skeletonDisplayRegion.PipelineAdded.connect(self.SkeletonPipelineAdded)
+		self.skeletonDisplayRegion.PipelineDeleted.connect(self.SkeletonPipelineDeleted)
+
+	def SkeletonPipelineAdded(self, newPipelineName:str) -> None:
+		newPipelineKey = to_camel_case(newPipelineName)
+
+		self.skeletonPipelines[newPipelineKey] = {
+			"name": newPipelineName,
+			"steps": []
+		}
+
+		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
+		self.PipelineAdded.emit(newPipelineKey)
+
+	def SkeletonPipelineDeleted(self, currSkeletonKey:str) -> None:
+		self.skeletonPipelines.pop(currSkeletonKey)
+
+		self.SkeletonPipelineChanged.emit(self.skeletonPipelines.copy())
+		self.PipelineRemoved.emit(currSkeletonKey)
 
 	def UpdateCalculationsFileSkeletonName(self, oldKey:str, newKey:str) -> None:
 		#loop through output files

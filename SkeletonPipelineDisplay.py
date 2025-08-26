@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QSlider, QLineEdit, QLabel, QPushButton
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QDoubleValidator, QFont, QPixmap
+from PySide6.QtGui import QDoubleValidator, QFont, QPixmap, QColor
 
 from ClickableLabel import ClickableLabel
 from SliderLineEditCombo import SliderLineEditCombo
@@ -29,7 +29,10 @@ class SkeletonPipelineDisplay(QVBoxLayout):
 
         self.addWidget(self.skeletonLabel, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.skeletonLabel.setPixmap(QPixmap(self.imageSize, self.imageSize))
+        blackPixmap = QPixmap(self.imageSize, self.imageSize)
+        blackPixmap.fill(QColor("black"))
+
+        self.SetPixmap(blackPixmap)
 
         buttonLayout = QHBoxLayout()
         self.addLayout(buttonLayout)

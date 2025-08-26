@@ -162,10 +162,10 @@ class PreviewWindow(QWidget):
 				else:
 					self.deleteItemsOfLayout(item.layout())
 
-	def TriggerParameterChanged(self) -> None:
+	def TriggerParameterChanged(self, currSkeletonKey) -> None:
 		parameters = self.sliders.GetValues()
 
-		self.ParametersChanged.emit(parameters, self.currentSkeletonKey)
+		self.ParametersChanged.emit(parameters, currSkeletonKey)
 
 	def AddParameterSliders(self, parameterValues:dict) -> None:
 		self.deleteItemsOfLayout(self.parameterLayout)

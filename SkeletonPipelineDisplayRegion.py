@@ -21,6 +21,9 @@ class SkeletonPipelineDisplayRegion(QScrollArea):
 	LoadPreview = Signal(str)
 	ToggleOverlay = Signal(str)
 	CompareToExternalSkeleton = Signal(str)
+
+	PipelineDeleted = Signal(str)
+	PipelineAdded = Signal(str)
 	
 	def __init__(self, parent, skeletonPipelines:dict, pipelineSteps:dict, stepParameters:dict, imageSize:int) -> None:
 		super().__init__(parent)
@@ -40,8 +43,8 @@ class SkeletonPipelineDisplayRegion(QScrollArea):
 		self.setWidget(scrollContentWidget)
 		mainLayout = QVBoxLayout(scrollContentWidget)
 
-		skeletonLayout = QVBoxLayout()
-		mainLayout.addLayout(skeletonLayout)
+		self.skeletonLayout = QVBoxLayout()
+		mainLayout.addLayout(self.skeletonLayout)
 
 		self.sliders:dict[str, SkeletonPipelineParameterSliders] = {}
 		self.skeletonLayouts:dict[str, QHBoxLayout] = {}
@@ -49,7 +52,7 @@ class SkeletonPipelineDisplayRegion(QScrollArea):
 
 		for currSkeletonKey in self.skeletonPipelines:
 			self.skeletonLayouts[currSkeletonKey] = QHBoxLayout()
-			mainLayout.addLayout(self.skeletonLayouts[currSkeletonKey])
+			self.skeletonLayout.addLayout(self.skeletonLayouts[currSkeletonKey])
 
 			sliderLayout = SkeletonPipelineParameterSliders(
 				currSkeletonKey, 
@@ -59,10 +62,15 @@ class SkeletonPipelineDisplayRegion(QScrollArea):
 				True)
 			self.skeletonLayouts[currSkeletonKey].addLayout(sliderLayout)
 
-			sliderLayout.ValueChanged.connect(partial(self.TriggerParameterChanged, currSkeletonKey))
+			sliderLayout.ValueChanged.connect(self.TriggerParameterChanged)
 			sliderLayout.UpdatedSkeletonName.connect(self.TriggerSkeletonPipelineNameChanged)
 			sliderLayout.UpdatedSkeletonPipeline.connect(self.TriggerSkeletonPipelineUpdated)
+			sliderLayout.DeleteSkeletonPipeline.connect(self.DeleteSkeletonizationPipeline)
 			self.sliders[currSkeletonKey] = sliderLayout
+
+		addPipelineButton = QPushButton("Add Skeletonization Pipeline")
+		mainLayout.addWidget(addPipelineButton)
+		addPipelineButton.clicked.connect(self.AddSkeletonizationPipeline)
 
 	def AddSkeletonDisplays(self) -> None:
 		for currSkeletonKey in self.skeletonPipelines:
@@ -107,3 +115,77 @@ class SkeletonPipelineDisplayRegion(QScrollArea):
 	def SetParameterValues(self, newValues:dict) -> None:
 		for currSkeletonKey in self.sliders:
 			self.sliders[currSkeletonKey].UpdateValues(newValues[currSkeletonKey])
+
+	def AddSkeletonizationPipeline(self) -> None:
+		index = 1
+		newPipelineName = "New Skeletonization Pipeline " + str(index)
+		newPipelineKey = to_camel_case(newPipelineName)
+
+		while newPipelineName in self.skeletonPipelines:
+			index += 1
+			newPipelineName = "New Skeletonization Pipeline " + str(index)
+			newPipelineKey = to_camel_case(newPipelineName)
+
+		self.skeletonPipelines[newPipelineKey] = {
+			"name": newPipelineName,
+			"steps": []
+		}
+
+		self.skeletonLayouts[newPipelineKey] = QHBoxLayout()
+		self.skeletonLayout.addLayout(self.skeletonLayouts[newPipelineKey])
+
+		sliderLayout = SkeletonPipelineParameterSliders(
+			newPipelineKey, 
+			self.skeletonPipelines.copy(), 
+			self.pipelineSteps.copy(), 
+			self.stepParameters.copy(), 
+			True)
+		self.skeletonLayouts[newPipelineKey].addLayout(sliderLayout)
+
+		sliderLayout.ValueChanged.connect(partial(self.TriggerParameterChanged, newPipelineKey))
+		sliderLayout.UpdatedSkeletonName.connect(self.TriggerSkeletonPipelineNameChanged)
+		sliderLayout.UpdatedSkeletonPipeline.connect(self.TriggerSkeletonPipelineUpdated)
+		sliderLayout.DeleteSkeletonPipeline.connect(self.DeleteSkeletonizationPipeline)
+		self.sliders[newPipelineKey] = sliderLayout
+
+		self.skeletonDisplays[newPipelineKey] = SkeletonPipelineDisplay(newPipelineKey, self.imageSize)
+		self.skeletonLayouts[newPipelineKey].addLayout(self.skeletonDisplays[newPipelineKey])
+
+		self.skeletonDisplays[newPipelineKey].GoIntoSkeletonView.connect(self.GoIntoSkeletonView.emit)
+		self.skeletonDisplays[newPipelineKey].LoadPreview.connect(self.LoadPreview.emit)
+		self.skeletonDisplays[newPipelineKey].ToggleOverlay.connect(self.ToggleOverlay.emit)
+		self.skeletonDisplays[newPipelineKey].CompareToExternalSkeleton.connect(self.CompareToExternalSkeleton.emit)
+
+		self.PipelineAdded.emit(newPipelineName)
+
+	def RemoveLayout(self, layout:QVBoxLayout|QHBoxLayout) -> None:
+		for i in reversed(range(layout.count())):
+			item = layout.itemAt(i)
+
+			if item.widget():
+				item.widget().setParent(None)
+			elif item.layout():
+				self.RemoveLayout(item.layout())  # Recursively remove child layouts
+
+			layout.removeItem(item)
+
+		# Find and remove layout from parent layout
+		for i in range(self.skeletonLayout.count()):
+			item = self.skeletonLayout.itemAt(i)
+			if item and item.layout() == layout:
+				self.skeletonLayout.takeAt(i)
+				break
+
+		# Optionally delete the layout
+		del layout
+
+	def DeleteSkeletonizationPipeline(self, currSkeletonKey:str) -> None:
+		self.RemoveLayout(self.skeletonLayouts[currSkeletonKey])
+
+		self.sliders.pop(currSkeletonKey)
+		self.skeletonDisplays.pop(currSkeletonKey)
+		self.skeletonLayouts.pop(currSkeletonKey)
+
+		self.skeletonPipelines.pop(currSkeletonKey)
+
+		self.PipelineDeleted.emit(currSkeletonKey)

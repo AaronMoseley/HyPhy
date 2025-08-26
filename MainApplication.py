@@ -63,6 +63,8 @@ class MainApplication(QWidget):
         self.overview.CompareToExternal.connect(self.GoIntoComparison)
         self.overview.SkeletonPipelineChanged.connect(self.SkeletonPipelineChanged)
         self.overview.SkeletonPipelineNameChanged.connect(self.SkeletonPipelineNameChanged)
+        self.overview.PipelineAdded.connect(self.SkeletonPipelineAdded)
+        self.overview.PipelineRemoved.connect(self.SkeletonPipelineRemoved)
         
         self.skeletonViewer = SkeletonViewer()
         self.skeletonViewer.BackButtonPressed.connect(self.BackToOverview)
@@ -93,9 +95,15 @@ class MainApplication(QWidget):
         json.dump(newValues, skeletonFile, indent=4)
         skeletonFile.close()
 
-        self.skeletonPipelines = newValues
+        self.skeletonPipelines = newValues.copy()
 
         self.previewWindow.UpdateSkeletonPipelines(newValues.copy())
+
+    def SkeletonPipelineAdded(self, newPipelineKey:str) -> None:
+        self.parameterValues[newPipelineKey] = {}
+
+    def SkeletonPipelineRemoved(self, currSkeletonKey:str) -> None:
+        self.parameterValues.pop(currSkeletonKey)
 
     def SkeletonPipelineNameChanged(self, oldKey:str, newName:str) -> None:
         newKey = to_camel_case(newName)
@@ -104,9 +112,6 @@ class MainApplication(QWidget):
 
     def RetrieveParameterValues(self, values:list, currSkeletonKey:str) -> None:
         for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
-            #for parameterName in values[i]:
-            #    self.parameterValues[currSkeletonKey][f"{stepName}-{i}"][parameterName] = values[i][parameterName]
-
             self.parameterValues[currSkeletonKey][f"{stepName}-{i}"] = values[i].copy()
 
     def GetInitialParameterValues(self) -> None:
