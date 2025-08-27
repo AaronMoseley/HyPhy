@@ -147,3 +147,7 @@ class StepWithParameters(QHBoxLayout):
             return
         
         self.ValueChanged.emit()
+
+    def ResetParameters(self) -> None:
+        for parameterName in self.sliders:
+            self.sliders[parameterName].UpdateValue(self.parameters[parameterName]["default"])

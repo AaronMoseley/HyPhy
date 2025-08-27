@@ -52,6 +52,10 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
         titleFont.setUnderline(True)
         titleLabel.setFont(titleFont)
 
+        resetParametersButton = QPushButton("Reset Parameter Values to Defaults")
+        resetParametersButton.clicked.connect(self.ResetParameterValues)
+        self.addWidget(resetParametersButton)
+
         self.stepObjects:dict[str, StepWithParameters] = {}
 
         stepNameFont = QFont()
@@ -228,3 +232,13 @@ class SkeletonPipelineParameterSliders(QVBoxLayout):
 
     def TriggerDeletePipeline(self) -> None:
         self.DeleteSkeletonPipeline.emit(self.currSkeletonKey)
+
+    def ResetParameterValues(self) -> None:
+        self.currentlyUpdatingValues = True
+
+        for stepName in self.stepObjects:
+            self.stepObjects[stepName].ResetParameters()
+
+        self.currentlyUpdatingValues = False
+
+        self.TriggerValueChanged()
