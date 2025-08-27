@@ -27,6 +27,7 @@ from ComparisonWindow import ComparisonWindow
 from HelperFunctions import to_camel_case
 
 import json
+import os
 
 class MainApplication(QWidget):
     def __init__(self) -> None:
@@ -43,6 +44,7 @@ class MainApplication(QWidget):
         self.skeletonFileName = "SkeletonPipelines.json"
         self.stepsFileName = "PipelineSteps.json"
         self.parametersFileName = "StepParameters.json"
+        self.parameterValuesFileName = "ParameterValues.json"
 
         skeletonFile = open(self.skeletonFileName, "r")
         self.skeletonPipelines = json.load(skeletonFile)
@@ -114,20 +116,35 @@ class MainApplication(QWidget):
         for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
             self.parameterValues[currSkeletonKey][f"{stepName}-{i}"] = values[i].copy()
 
+        valuesFile = open(self.parameterValuesFileName, "w")
+        json.dump(self.parameterValues, valuesFile, indent=4)
+        valuesFile.close()
+
     def GetInitialParameterValues(self) -> None:
-        self.parameterValues = {}
-        for currSkeletonKey in self.skeletonPipelines:
-            currEntry = {}
+        if os.path.exists(self.parameterValuesFileName):
+            valuesFile = open(self.parameterValuesFileName, "r")
+            self.parameterValues = json.load(valuesFile)
+            valuesFile.close()
 
-            for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
-                stepEntry = {}
+            self.overview.SetParameterValues(self.parameterValues)
+        else:
+            self.parameterValues = {}
+            for currSkeletonKey in self.skeletonPipelines:
+                currEntry = {}
 
-                for parameterName in self.pipelineSteps[stepName]["relatedParameters"]:
-                    stepEntry[parameterName] = self.stepParameters[parameterName]["default"]
+                for i, stepName in enumerate(self.skeletonPipelines[currSkeletonKey]["steps"]):
+                    stepEntry = {}
 
-                currEntry[f"{stepName}-{i}"] = stepEntry
+                    for parameterName in self.pipelineSteps[stepName]["relatedParameters"]:
+                        stepEntry[parameterName] = self.stepParameters[parameterName]["default"]
 
-            self.parameterValues[currSkeletonKey] = currEntry
+                    currEntry[f"{stepName}-{i}"] = stepEntry
+
+                self.parameterValues[currSkeletonKey] = currEntry
+
+            valuesFile = open(self.parameterValuesFileName, "w")
+            json.dump(self.parameterValues, valuesFile, indent=4)
+            valuesFile.close()
 
     def GoIntoPreview(self, currImagePath:str, currSkeletonKey:str) -> None:
         self.previewWindow.LoadNewImage(currImagePath, currSkeletonKey, self.parameterValues)
