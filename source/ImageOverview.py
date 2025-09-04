@@ -12,19 +12,19 @@ import json
 
 from PIL import Image
 
-from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, to_camel_case, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey
-from ClickableLabel import ClickableLabel
-from SliderLineEditCombo import SliderLineEditCombo
-from ProgressBar import ProgressBarPopup
-from CreateSkeleton import GenerateSkeleton
-from CSVCreator import GenerateCSVs
+from source.Helpers.HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, to_camel_case, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey
+from source.UIElements.ClickableLabel import ClickableLabel
+from source.UIElements.SliderLineEditCombo import SliderLineEditCombo
+from source.UIElements.ProgressBar import ProgressBarPopup
+from source.Helpers.CreateSkeleton import GenerateSkeleton
+from source.Helpers.CSVCreator import GenerateCSVs
 import copy
 
 import time
 
-from SkeletonPipelineDisplay import SkeletonPipelineDisplay
-from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
-from SkeletonPipelineDisplayRegion import SkeletonPipelineDisplayRegion
+from source.UIElements.SkeletonPipelineDisplay import SkeletonPipelineDisplay
+from source.UIElements.SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
+from source.UIElements.SkeletonPipelineDisplayRegion import SkeletonPipelineDisplayRegion
 
 class ImageOverview(QWidget):
 	ClickedOnSkeleton = Signal(str, str)
@@ -61,7 +61,7 @@ class ImageOverview(QWidget):
 
 		self.currentSample = ""
 
-		self.initSettingsFilePath = os.path.join(self.workingDirectory, "initializationSettings.json")
+		self.initSettingsFilePath = os.path.join(self.workingDirectory, "configs", "initializationSettings.json")
 
 		self.defaultInputDirectory = os.path.join(self.workingDirectory, "Images")
 		self.defaultOutputDirectory = os.path.join(self.workingDirectory, "Skeletons")

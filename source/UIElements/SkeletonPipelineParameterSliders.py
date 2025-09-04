@@ -2,9 +2,8 @@ from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QSlider, QLineEdit, QLab
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QDoubleValidator, QFont
 
-from SliderLineEditCombo import SliderLineEditCombo
-from StepWithParameters import StepWithParameters
-from HelperFunctions import to_camel_case
+from source.UIElements.StepWithParameters import StepWithParameters
+from source.Helpers.HelperFunctions import to_camel_case
 
 class SkeletonPipelineParameterSliders(QVBoxLayout):
     ValueChanged = Signal(str)

@@ -4,19 +4,13 @@ from PySide6.QtCore import Qt, Signal
 
 import numpy as np
 
-from functools import partial
-
 import os
-import json
 
 from PIL import Image
 
-from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey, NormalizeImageArray, comparisonFunctionMap, camel_case_to_capitalized
-from ClickableLabel import ClickableLabel
-from SliderLineEditCombo import SliderLineEditCombo
-from ProgressBar import ProgressBarPopup
+from source.Helpers.HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, originalImageKey, vectorKey, pointsKey, linesKey, NormalizeImageArray, comparisonFunctionMap, camel_case_to_capitalized
 
-from CreateSkeleton import CallSkeletonize, VectorizeSkeleton
+from source.Helpers.CreateSkeleton import CallSkeletonize, VectorizeSkeleton
 
 class ComparisonWindow(QWidget):
 	BackToOverview = Signal()

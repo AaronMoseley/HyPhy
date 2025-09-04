@@ -4,7 +4,7 @@ from PySide6.QtGui import QMouseEvent, QColor
 
 import math
 
-from HelperFunctions import draw_lines_on_pixmap, DistanceToLine
+from source.Helpers.HelperFunctions import draw_lines_on_pixmap, DistanceToLine
 
 class InteractiveSkeletonPixmap(QLabel):
     #line length, cluster length, line index, cluster index

@@ -11,14 +11,11 @@ import json
 
 from PIL import Image
 
-from HelperFunctions import draw_lines_on_pixmap, ArrayToPixmap, skeletonKey, originalImageKey, vectorKey, pointsKey, linesKey, timestampKey, sampleKey, NormalizeImageArray
-from ClickableLabel import ClickableLabel
-from SliderLineEditCombo import SliderLineEditCombo
-from ProgressBar import ProgressBarPopup
+from source.Helpers.HelperFunctions import ArrayToPixmap, NormalizeImageArray
 
-from SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
+from source.UIElements.SkeletonPipelineParameterSliders import SkeletonPipelineParameterSliders
 
-from CreateSkeleton import stepFunctionMap
+from source.Helpers.CreateSkeleton import stepFunctionMap
 
 class PreviewWindow(QWidget):
 	BackToOverview = Signal()

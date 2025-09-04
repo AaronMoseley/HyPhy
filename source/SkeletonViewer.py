@@ -7,9 +7,9 @@ from PIL import Image
 import os
 import numpy as np
 
-from HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionTypeKey, imageTypeKey, clusterTypeKey, lineTypeKey
-from InteractiveSkeletonPixmap import InteractiveSkeletonPixmap
-from CustomTextEdit import CustomTextEdit
+from source.Helpers.HelperFunctions import camel_case_to_capitalized, ArrayToPixmap, originalImageKey, statFunctionMap, vectorKey, pointsKey, linesKey, clusterKey, functionTypeKey, imageTypeKey, clusterTypeKey, lineTypeKey
+from source.UIElements.InteractiveSkeletonPixmap import InteractiveSkeletonPixmap
+from source.UIElements.CustomTextEdit import CustomTextEdit
 
 class SkeletonViewer(QWidget):
     BackButtonPressed = Signal()

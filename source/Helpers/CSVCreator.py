@@ -1,6 +1,6 @@
 import csv
 import os
-from HelperFunctions import skeletonKey, pointsKey, linesKey, clusterKey, statFunctionMap, vectorKey, functionTypeKey, imageTypeKey, lineTypeKey, clusterTypeKey
+from source.Helpers.HelperFunctions import skeletonKey, pointsKey, linesKey, clusterKey, statFunctionMap, vectorKey, functionTypeKey, imageTypeKey, lineTypeKey, clusterTypeKey
 
 def GenerateCSVs(jsonObject:dict, baseFileName:str, outputDirectory:str) -> None:
     #create new directory

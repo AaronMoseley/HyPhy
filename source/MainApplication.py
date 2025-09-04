@@ -19,12 +19,12 @@ import sys
 from PySide6.QtWidgets import QApplication, QWidget, QStackedLayout, QMainWindow
 from PySide6.QtGui import QResizeEvent
 
-from ImageOverview import ImageOverview
-from SkeletonViewer import SkeletonViewer
-from PreviewWindow import PreviewWindow
-from ComparisonWindow import ComparisonWindow
+from source.ImageOverview import ImageOverview
+from source.SkeletonViewer import SkeletonViewer
+from source.PreviewWindow import PreviewWindow
+from source.ComparisonWindow import ComparisonWindow
 
-from HelperFunctions import to_camel_case
+from source.Helpers.HelperFunctions import to_camel_case
 
 import json
 import os
@@ -41,10 +41,10 @@ class MainApplication(QWidget):
 
         self.setFixedSize(screen_size.width(), screen_size.height() * 0.9)
 
-        self.skeletonFileName = "SkeletonPipelines.json"
-        self.stepsFileName = "PipelineSteps.json"
-        self.parametersFileName = "StepParameters.json"
-        self.parameterValuesFileName = "ParameterValues.json"
+        self.skeletonFileName = os.path.join("configs", "SkeletonPipelines.json")
+        self.stepsFileName = os.path.join("configs", "PipelineSteps.json")
+        self.parametersFileName = os.path.join("configs", "StepParameters.json")
+        self.parameterValuesFileName = os.path.join("configs", "ParameterValues.json")
 
         skeletonFile = open(self.skeletonFileName, "r")
         self.skeletonPipelines = json.load(skeletonFile)
