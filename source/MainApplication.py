@@ -36,8 +36,7 @@ class MainApplication(QWidget):
         screen_geometry = QApplication.primaryScreen().availableGeometry()
         screen_size = screen_geometry.size()
 
-        # Set max size to screen size
-        #self.setMaximumSize(screen_size)
+        self.setWindowTitle("HyPhy")
 
         self.setFixedSize(screen_size.width(), screen_size.height() * 0.9)
 
