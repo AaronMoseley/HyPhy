@@ -40,7 +40,7 @@ You must already have an environment set up to use this project. This is a requi
 
 ### Running the Program
 
-To use the program, make sure you have Python and all the program dependencies installed, then run the following command in your shell/command prompt.
+To use the program, make sure you have Python and all the program dependencies installed, then run the following command in your shell/command prompt while inside the HyPhy directory.
 
 ```sh
 RunProgram.bat
