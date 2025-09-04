@@ -47,6 +47,8 @@ RunProgram.bat
 ```
 
 Alternatively, if you need to debug the program, you can open this repo as a folder in VSCode and then run it using the "Main Application" configuration in the "Run and Debug" menu.
+
+The images you use are assumed to be in the file format {sample name}_{timestep}.{png or tif}. If your images are not in that format, it will cause an error in the program. If your data does not involve time steps, use a 0 or any other number for the timestep value.
    
 ## Recent Updates
 
