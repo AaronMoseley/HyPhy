@@ -1,2 +1,2 @@
-python source\\MainApplication.py
+python -m source.MainApplication
 pause
