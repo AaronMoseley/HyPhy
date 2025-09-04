@@ -27,7 +27,7 @@ class SkeletonViewer(QWidget):
 
         self.imageTitleLabelPrefix = "File Name: "
         self.lineLengthPrefix = "Selected Line Length: "
-        self.clumpLengthPrefix = "Selected Clump Length: "
+        self.clumpLengthPrefix = "Selected Cluster Length: "
 
         self.AddUI()
 
@@ -196,8 +196,8 @@ class SkeletonViewer(QWidget):
 
                 self.calculationStatLabels[statsLabelKey].setText(f"{title} {subtitle}: N/A")
         else:
-            self.lineLengthLabel.setText(self.lineLengthPrefix + str(lineLength))
-            self.clumpLengthLabel.setText(self.clumpLengthPrefix + str(clumpLength))
+            self.lineLengthLabel.setText(self.lineLengthPrefix + str(lineLength * imageScale))
+            self.clumpLengthLabel.setText(self.clumpLengthPrefix + str(clumpLength * imageScale))
 
             for statsLabelKey in self.calculationStatLabels:
                 if statFunctionMap[statsLabelKey][functionTypeKey] == imageTypeKey:
