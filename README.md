@@ -8,7 +8,7 @@
 
 <br/>
 <br/>
-<a href="https://youtu.be/-0nsbsNzMa8">View Demo .</a>  
+<a href="https://youtu.be/fFXoH72r6VE">View Demo .</a>  
 <a href="mailto:amoseley018@gmail.com?subject=Skeletonization%20Tool%20Bug">Report Bug .</a>
 
 </p>
