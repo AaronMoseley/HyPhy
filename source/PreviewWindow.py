@@ -135,6 +135,8 @@ class PreviewWindow(QWidget):
 		self.imageNameLabel.setText(f"Image: {imageName}")
 
 		self.currentStepIndex = 0
+		self.rightButton.setEnabled(True)
+		self.leftButton.setEnabled(False)
 		self.currentSkeletonKey = currSkeletonKey
 
 		self.skeletonNameLabel.setText(f"Skeleton Type: {self.skeletonPipelines[self.currentSkeletonKey]['name']}")
