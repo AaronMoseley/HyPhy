@@ -90,45 +90,28 @@ SkelPy also generates a set of CSV files representing the same information for e
 
 Below is the directory tree of example input and output files for a single input image. This example uses the two default skeletonizations pipelines that are included in SkelPy: Sclerotia Primordia and Fungal Network. The Images directory is used as the input directory, while the Skeletons directory is the output.
 
-├───Images
-
-│       ExampleImage_01.tif
-
-│
-
-├───Skeletons
-
-│   │   ExampleImage_01_network.tif
-
-│   │   ExampleImage_01_sclerotiaPrimordia.tif
-
-│   │
-
-│   └───Calculations
-
-│       │   ExampleImage_01_calculations.json
-
-│       │
-
-│       ├───ExampleImage_01_skeleton_csvs
-
-│       │       fileInfo.csv
-
-│       │       network_clusters.csv
-
-│       │       network_lines.csv
-
-│       │       network_metadata.csv
-
-│       │       network_points.csv
-
-│       │       sclerotiaPrimordia_clusters.csv
-
-│       │       sclerotiaPrimordia_lines.csv
-
-│       │       sclerotiaPrimordia_metadata.csv
-
-│       │       sclerotiaPrimordia_points.csv
+```
+├───Images  
+│       ExampleImage_01.tif  
+│  
+├───Skeletons  
+│   │   ExampleImage_01_network.tif  
+│   │   ExampleImage_01_sclerotiaPrimordia.tif  
+│   │  
+│   └───Calculations  
+│       │   ExampleImage_01_calculations.json  
+│       │  
+│       ├───ExampleImage_01_skeleton_csvs  
+│       │       fileInfo.csv  
+│       │       network_clusters.csv  
+│       │       network_lines.csv  
+│       │       network_metadata.csv  
+│       │       network_points.csv  
+│       │       sclerotiaPrimordia_clusters.csv  
+│       │       sclerotiaPrimordia_lines.csv  
+│       │       sclerotiaPrimordia_metadata.csv  
+│       │       sclerotiaPrimordia_points.csv  
+```
 
 ### Skeleton Viewer
 
