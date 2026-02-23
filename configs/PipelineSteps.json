@@ -30,5 +30,21 @@
     "Normalize Image": {
         "relatedParameters": [],
         "function": "normalizeImage"
+    },
+    "Segment Area Around Center": {
+        "relatedParameters": ["searchThreshold"],
+        "function": "segmentCenterArea"
+    },
+    "RGB to HSV": {
+        "relatedParameters": [],
+        "function": "rgbToHSV"
+    },
+    "Reduce to Single Channel": {
+        "relatedParameters": ["singleChannelIndex"],
+        "function": "reduceToSingleChannel"
+    },
+    "Binary Edge Detection": {
+        "relatedParameters": [],
+        "function": "binaryEdgeDetection"
     }
 }

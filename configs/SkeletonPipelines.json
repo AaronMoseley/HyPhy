@@ -20,5 +20,17 @@
             "Smooth Image",
             "Remove Small White Islands"
         ]
+    },
+    "fungalBoundaryDetection": {
+        "name": "Fungal Boundary Detection",
+        "steps": [
+            "Normalize Image",
+            "Adjust Contrast",
+            "RGB to HSV",
+            "Reduce to Single Channel",
+            "Segment Area Around Center",
+            "Smooth Image",
+            "Binary Edge Detection"
+        ]
     }
 }

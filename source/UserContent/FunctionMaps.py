@@ -17,7 +17,11 @@ PIPELINE_STEP_FUNCTION_MAP = {
     "smoothBinaryArray": CallSmoothBinaryArray,
     "skeletonize": CallSkeletonize,
     "adjustContrast": CallAdjustContrast,
-    "edgeDetection": CallEdgeDetection
+    "edgeDetection": CallEdgeDetection,
+    "segmentCenterArea": SegmentAreasAroundCenter,
+    "rgbToHSV": RGBToHSV,
+    "reduceToSingleChannel": ReduceToSingleChannel,
+    "binaryEdgeDetection": BinaryEdgeDetection
 }
 
 #calculates metadata about each skeleton

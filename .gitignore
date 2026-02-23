@@ -12,3 +12,4 @@ ParameterValues.json
 dist*
 build*
 *.spec
+*.tif
